@@ -1,0 +1,11 @@
+{
+  "_comment": "Snippet to register the agenticcourse MCP server with Claude Desktop. Merge into ~/Library/Application Support/Claude/claude_desktop_config.json on macOS, or %APPDATA%\\Claude\\claude_desktop_config.json on Windows. Restart Claude Desktop after editing.",
+  "mcpServers": {
+    "agenticcourse-tools": {
+      "command": "/Users/srmallip/projects/AgenticCourse/helloworld/.venv/bin/python",
+      "args": [
+        "/Users/srmallip/projects/AgenticCourse/helloworld/mcp_server.py"
+      ]
+    }
+  }
+}
