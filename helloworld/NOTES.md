@@ -15,6 +15,7 @@ A newbie-friendly tour of LangChain, built one file at a time. Each step adds ex
 | `rag.py` | RAG — retrieve relevant chunks, ground the answer in them | 1 (+ embeddings, local) |
 | `safe_rag.py` | RAG wrapped in input + output guardrails | 1-4 depending on guards |
 | `production_chatbot.py` | Capstone — RAG + memory + caching + guardrails composed | ~5-9 per turn |
+| `mcp_server.py` + `mcp_client.py` | MCP — tools exposed over JSON-RPC stdio for any client | 0 (no LLM in demo) |
 
 ---
 
@@ -1500,6 +1501,213 @@ For Sonnet 4.6 ($3/M input, $15/M output, $0.30/M cache read, $3.75/M cache writ
 | RAG | model call + embed query (cheap, local) | ~constant per query |
 | Guardrails | extra cheap calls + LLM judges | +20-50% over base |
 | Production capstone | all of above | ~$0.005-0.020 per turn |
+
+---
+
+# Phase 2 — The 32-session Curriculum
+
+Steps 1-8 + the production capstone above are **the foundation**. From here, sessions are numbered per [`CURRICULUM.md`](./CURRICULUM.md) (1 through 32) and group into 12 tracks across 11 weeks. New work continues below.
+
+---
+
+## Session 1 — `mcp_server.py` + `mcp_client.py`: MCP (Model Context Protocol)
+
+**Goal:** expose the tools you've already built (`add`, `count_letters`, `get_current_time`, plus the `retrieve_docs` RAG retriever) as an **MCP server**, so any MCP-compatible client — Claude Desktop, Cursor, Continue.dev, your own Python code — can discover and call them.
+
+### What MCP is
+
+**MCP** is a JSON-RPC standard for LLM clients to discover and invoke tools/resources/prompts from servers. It's the network-protocol version of the in-process tool-calling you wrote in `agent.py`. **Same propose → execute → feedback dance, different transport.**
+
+Why it matters: any MCP-compatible LLM client can connect to *any* MCP server and use its tools. **One server's tools become available to every client in the ecosystem.**
+
+### Architecture
+
+```
+   ┌────────────────────────────┐        ┌─────────────────────────┐
+   │   MCP CLIENT               │        │   MCP SERVER            │
+   │   (any LLM app)            │        │   (your code)           │
+   │                            │        │                         │
+   │   - Claude Desktop         │        │  exposes:               │
+   │   - Cursor                 │ stdio  │   add(a, b)             │
+   │   - Continue.dev           │◄─────► │   count_letters(text)   │
+   │   - mcp_client.py          │ JSON-  │   get_current_time()    │
+   │     (this session)         │  RPC   │   retrieve_docs(query)  │
+   │                            │        │                         │
+   └────────────────────────────┘        └─────────────────────────┘
+                                              ↑
+                                       Backing: the RAG pipeline
+                                       (load → split → embed → store)
+                                       initialized once at startup.
+```
+
+The **server is just a Python module** that registers tools with `@mcp.tool()` and runs over stdio. The **client is any process that speaks the MCP protocol** — a Python script, the Claude Desktop GUI, a VSCode extension, etc.
+
+### Code shape
+
+**Server (`mcp_server.py`):**
+
+```python
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("agenticcourse-tools")
+
+@mcp.tool()
+def add(a: int, b: int) -> int:
+    """Add two integers and return the sum."""
+    return a + b
+
+@mcp.tool()
+def retrieve_docs(query: str) -> str:
+    """Search the AgenticCourse tutorial knowledge base."""
+    hits = retriever.invoke(query)
+    return format_context(hits)
+
+if __name__ == "__main__":
+    mcp.run()    # listens on stdio
+```
+
+Same `@tool`-style decorator you used in `agent.py`. **Tool schemas auto-generated from type hints + docstrings.**
+
+**Client (`mcp_client.py`):**
+
+```python
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+server_params = StdioServerParameters(
+    command="python", args=["mcp_server.py"]
+)
+
+async with stdio_client(server_params) as (read, write):
+    async with ClientSession(read, write) as session:
+        await session.initialize()                  # 1. handshake
+        tools = await session.list_tools()          # 2. discover
+        result = await session.call_tool("add",     # 3. call
+                                          {"a": 47, "b": 158})
+```
+
+Three calls: **initialize → list_tools → call_tool**. That's the entire MCP client API.
+
+### What you'll see when you run it
+
+```
+[1] initialize()    → server: agenticcourse-tools v1.27.1, protocol 2025-11-25
+[2] list_tools()    → 4 tools auto-discovered:
+                       - add(a, b)
+                       - count_letters(text)
+                       - get_current_time()
+                       - retrieve_docs(query)
+[3] call_tool():
+       add(47, 158)                          → 205        (9 ms)
+       count_letters("Vidya Karana")         → 11         (3 ms)
+       get_current_time()                    → "2026-..."  (2 ms)
+       retrieve_docs("prompt caching ...")   → "[from LEARNINGS.md] ..."  (531 ms)
+```
+
+The first three tools return in single-digit milliseconds — they're pure Python, no network, no model. `retrieve_docs` is slower because it embeds the query and does a cosine-similarity search over 180 chunks. **Both happen in the server's process, not yours.**
+
+### How to start the MCP server
+
+Four ways, ranked by usefulness:
+
+**1. Python client launches it automatically (the demo):**
+```bash
+python mcp_client.py
+```
+The client spawns `mcp_server.py` as a subprocess, talks to it over stdio, shuts it down when done. **This is how MCP works in production** — the client owns the server's lifecycle.
+
+**2. Connect to Claude Desktop (the "click" moment):**
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) — paste the snippet from `claude-desktop.json`. Restart Claude Desktop completely (Cmd+Q + reopen). Now ask Claude in the GUI: *"What is prompt caching?"* — it'll discover and call your `retrieve_docs`. Same tool, different client.
+
+**3. MCP Inspector (interactive debugging):**
+```bash
+pip install "mcp[cli]"
+mcp dev mcp_server.py
+```
+Opens a browser-based inspector for poking at the server's tools. Recommended for development.
+
+**4. Raw stdio (for protocol debugging):**
+```bash
+python mcp_server.py
+```
+Server runs and waits for JSON-RPC messages on stdin. Rarely used directly; useful for testing.
+
+### Five things to notice
+
+#### 1. Same tool schemas, different transport
+
+The `@mcp.tool()` decorator reads your function's type hints + docstring and emits the same JSON Schema you'd get from `@tool` in LangChain. **The schema is the contract.** Once it's defined, the LLM (in any client) knows how to call your function.
+
+#### 2. Server-side state is real
+
+The RAG pipeline initializes once at server startup (~3-5 seconds — loading the embedding model, indexing 180 chunks). Subsequent `retrieve_docs` calls reuse the warm retriever. This is a big advantage of MCP over in-process tools: **server-side resources can be expensive to set up once and cheap to query many times.**
+
+#### 3. The protocol is just JSON-RPC
+
+What goes over stdio on every call:
+
+```json
+// list_tools request:
+{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}
+
+// list_tools response:
+{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"add",...}]}}
+
+// call_tool request:
+{"jsonrpc":"2.0","id":2,"method":"tools/call",
+ "params":{"name":"add","arguments":{"a":47,"b":158}}}
+
+// call_tool response:
+{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"205"}]}}
+```
+
+That's it. **No new abstractions** — just `tools/list` and `tools/call` over stdio. You could implement this by hand in ~80 lines of Python.
+
+#### 4. Cross-client reusability is the point
+
+The same `mcp_server.py` serves:
+- Your Python `mcp_client.py`
+- Claude Desktop GUI
+- Cursor's MCP integration
+- Continue.dev's MCP integration
+- Any custom MCP client
+
+**One server, many consumers.** That's the protocol's value proposition.
+
+#### 5. Logs go to stderr, NOT stdout
+
+Critical: MCP servers communicate over stdout in JSON-RPC. Printing anything else to stdout breaks the protocol. **All server-side logging must go to stderr:**
+
+```python
+print("[mcp_server] loading...", file=sys.stderr, flush=True)
+```
+
+This trips up everyone at least once. You'll know it happened when the client mysteriously fails to handshake.
+
+### MCP vs `agent.py`'s tool loop — what really changed
+
+| Aspect | `agent.py` (in-process) | `mcp_server.py` + client (MCP) |
+|---|---|---|
+| Tool definition | `@tool` decorator | `@mcp.tool()` decorator (~identical) |
+| Tool registry | `tools_by_name` dict | Server's internal dict |
+| Tool execution | Direct Python call | JSON-RPC over stdio |
+| Tool sharing | One process only | Any MCP client |
+| Server-side state | Same process as client | Persistent across client connections |
+| Schema generation | LangChain's `@tool` | MCP's `@mcp.tool()` |
+| Transport overhead | Function call (~µs) | stdio + JSON parse (~ms) |
+
+**Conceptually identical, operationally different.**
+
+### Try this
+
+1. **Try Claude Desktop integration** — wire `claude-desktop.json` into the GUI, restart, ask *"What is prompt caching?"*. You'll watch Claude discover your tools and call `retrieve_docs`. That moment is when MCP clicks.
+2. **Add a new tool to the server** — e.g., a `multiply(a, b)` tool. Restart the client. Watch it auto-discover the new tool without any client-side changes. That's the value of schema-driven discovery.
+3. **Add an LLM in front of the client** — wrap `session.list_tools()` and `session.call_tool()` in a LangChain `create_react_agent`. Now you have a real MCP-powered agent. ~30 lines on top of `mcp_client.py`.
+
+### Mental model in one line
+
+> **MCP is `agent.py`'s tool-calling, but over a wire. Server defines tools, clients discover and call them. Any client can use any server. The schema is the contract; JSON-RPC is the wire format; stdio is the most common transport.**
 
 ---
 
