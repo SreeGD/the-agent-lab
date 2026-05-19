@@ -1,0 +1,30 @@
+{
+  "description": "Golden dataset for RAG evaluation. Each entry has a question and a ground-truth answer that should be findable in NOTES.md or LEARNINGS.md. Keep small (5 entries) so the eval harness runs in under 2 minutes.",
+  "examples": [
+    {
+      "id": "caching-savings",
+      "question": "What was the measured cost reduction from prompt caching in the lab?",
+      "ground_truth": "76% cost reduction — from $0.015519 to $0.003725 — when 4,389 cached tokens were read from cache instead of reprocessed."
+    },
+    {
+      "id": "memorysaver",
+      "question": "Which LangGraph component gives an agent memory across multiple .invoke() calls?",
+      "ground_truth": "MemorySaver, used as the checkpointer. It persists state across calls so the agent remembers earlier turns of a conversation."
+    },
+    {
+      "id": "lcel-operator",
+      "question": "What operator does LCEL use to pipe components together?",
+      "ground_truth": "The pipe operator |, as in: prompt | model | parser. It composes runnables into a single chain."
+    },
+    {
+      "id": "embeddings-model",
+      "question": "What embeddings model does the RAG lab use?",
+      "ground_truth": "sentence-transformers/all-MiniLM-L6-v2, a local open-source 384-dimensional embedding model."
+    },
+    {
+      "id": "kv-cache",
+      "question": "What does prompt caching actually save from being recomputed?",
+      "ground_truth": "The KV cache tensor — the Key and Value projections computed during the prefill stage of inference. Without caching, this tensor is recomputed from scratch on every request."
+    }
+  ]
+}
