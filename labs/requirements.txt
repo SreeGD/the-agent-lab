@@ -9,6 +9,7 @@ langgraph>=0.2
 litellm>=1.80
 matplotlib>=3.7
 mcp>=1.0
+networkx>=3.0
 numpy<2
 pytest>=7.4
 pytest-mock>=3.12
