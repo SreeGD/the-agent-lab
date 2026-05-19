@@ -5,5 +5,8 @@ langchain-huggingface>=0.1
 langgraph>=0.2
 mcp>=1.0
 numpy<2
+pytest>=7.4
+pytest-mock>=3.12
 python-dotenv>=1.0
+PyYAML>=6.0
 sentence-transformers>=3.0

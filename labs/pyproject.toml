@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agenticcourse-labs"
+version = "0.1.0"
+description = "Hands-on labs for building agentic AI systems with LangChain, LangGraph, and Anthropic Claude"
+readme = "../README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+addopts = "-q --strict-markers --tb=short"
+markers = [
+    "integration: tests that hit a real LLM API (skipped by default; opt-in with `pytest -m integration`). Requires ANTHROPIC_API_KEY.",
+    "slow: tests that take >5 seconds (e.g. embedding model load).",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:langgraph.*",
+    "ignore::DeprecationWarning:pydantic.*",
+    "ignore::UserWarning:huggingface_hub.*",
+]
