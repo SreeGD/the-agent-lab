@@ -301,6 +301,51 @@ A: Both can be loaded — most skill loaders allow it. The LLM sees both bodies 
 
 A: The SKILL.md format is Anthropic's (used by Claude Code, Claude.ai, Claude Agent SDK). The *concept* — on-demand context loaded by semantic match — is general and could be implemented for any LLM. The format is converging across vendors but Anthropic's leading.
 
+**Q: If a user query contains PII (like an SSN), does the matching skill block it from reaching the LLM?**
+
+A: **No. Skills do not block anything.** A skill is markdown content that gets loaded into Claude's context when the description matches. It has no execution power — it cannot intercept, redact, or refuse a request. When you see `agenticcourse-guardrails` describe PII regex as the "free, ~1 ms" first defense, that's *advice* about how to design a block, not the block itself. The block lives in your application code (e.g., `contains_pii()` in `labs/32_governance.py`), not in the skill file.
+
+**Q: What's the difference between a skill being TRIGGERED and a skill ENFORCING something?**
+
+A: **Triggering** = the description matches the user's intent → the body is loaded into context. **Enforcement** = something at runtime actually rejects, sanitizes, or redirects the request. Skills only do triggering. Enforcement is always a separate layer — application code, hooks, middleware, or a gateway. The skill makes Claude *smarter when designing* the enforcement; it doesn't *become* the enforcement.
+
+**Q: So where does enforcement actually happen — skill, hook, application code, or gateway?**
+
+A: Different layers for different jobs:
+
+| Concern | Mechanism | Where it lives |
+|---|---|---|
+| **Knowledge** about how to design a check | Skill (SKILL.md content) | `labs/skills/<name>/SKILL.md` — the *blueprint* |
+| **Enforcement in your application** | Code (regex + pipeline) | Your service code (e.g., `governed_pipeline()` in Session 20) |
+| **Enforcement at the Claude Code CLI** | UserPromptSubmit hook | `~/.claude/settings.json` hooks block + shell script |
+| **Enforcement at the network edge** | Gateway / proxy filter | Cloudflare, AWS WAF, Envoy filter — before the API call |
+
+The skill is the *blueprint*; code/hooks/gateways are the *machinery*. Skills travel with you across all of those layers (they teach Claude the right pattern wherever Claude is helping you build); the enforcement always lives in one of the runtime layers.
+
+**Q: How do I make Claude Code itself refuse PII-containing prompts (so the CLI blocks even my own typos)?**
+
+A: A `UserPromptSubmit` hook in `~/.claude/settings.json`. The hook is a shell command that runs before every prompt is sent; non-zero exit blocks the submission. Example:
+
+```bash
+#!/usr/bin/env bash
+# ~/.claude/hooks/user-prompt-submit.sh
+if echo "$CLAUDE_USER_PROMPT" | grep -qE '\b\d{3}-\d{2}-\d{4}\b'; then
+  echo "ERROR: prompt contains SSN; refusing to send" >&2
+  exit 1
+fi
+```
+
+```jsonc
+// ~/.claude/settings.json
+{
+  "hooks": {
+    "UserPromptSubmit": [{ "command": "~/.claude/hooks/user-prompt-submit.sh" }]
+  }
+}
+```
+
+Now Claude Code blocks the prompt before it reaches the API — the hook is the enforcement; the `agenticcourse-guardrails` skill (when loaded by topic match) would teach Claude *what the hook should check for*, not perform the check.
+
 ---
 
 ## Related
