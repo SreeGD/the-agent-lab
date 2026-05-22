@@ -515,7 +515,8 @@ def _build_system_prompt() -> str:
 # =====================================================================
 
 class CorePlanSection(BaseModel):
-    """Call 1 output: the substantive plan — what grows + livestock + apiary."""
+    """Legacy combined section — kept for backwards compat.
+    The graph engine splits this into 3 smaller sections (faster + more reliable)."""
     plan_summary: str = Field(description="One-paragraph overview of the plan.")
     farmer_profile_inferred: str = Field(description="One-paragraph synthesis of the profile.")
     crops: list[CropInPlan] = Field(description="3-6 crops balancing short/medium/perennial time horizons.")
@@ -523,6 +524,29 @@ class CorePlanSection(BaseModel):
     apiary: ApiaryInPlan | None = None
     risk_diversification_strategy: str = Field(default="",
         description="How the crop + livestock + apiary mix hedges risk.")
+
+
+class ProfileSynthesisSection(BaseModel):
+    """Fast first node: synthesize the profile + state the strategy in plain English."""
+    plan_summary: str = Field(description="One-paragraph overview of the plan you'll recommend.")
+    farmer_profile_inferred: str = Field(description="One-paragraph synthesis of the farmer's situation.")
+    risk_diversification_strategy: str = Field(
+        description="How the eventual crop + livestock mix will hedge risk.")
+
+
+class CropSelectionSection(BaseModel):
+    """Crops only — the biggest LLM output, isolated for reliability."""
+    crops: list[CropInPlan] = Field(
+        description="3-6 crops balancing short-term cash crops / medium-term / perennials / boundary. "
+                    "Variety-level granularity. Match to climate + soil + wildlife + labor + investment.")
+
+
+class LivestockApiarySection(BaseModel):
+    """Livestock + apiary — only emitted when goals request them."""
+    livestock: list[LivestockInPlan] = Field(default_factory=list,
+        description="Livestock recommendations (dairy, poultry, fish, etc.) IF goals include them.")
+    apiary: ApiaryInPlan | None = Field(default=None,
+        description="Apiary plan IF goals.include_apiary is true. Otherwise None.")
 
 
 class SustainabilitySection(BaseModel):
@@ -729,7 +753,11 @@ class PlanGraphState(TypedDict, total=False):
     profile: FarmProfile
     goals: PlanningGoals
     risk_profile: str        # "conservative" | "balanced" | "aggressive"
-    # LLM-call outputs
+    # LLM-call outputs — 3 small core sections (replaces single CorePlanSection)
+    profile_synthesis: ProfileSynthesisSection
+    crop_selection: CropSelectionSection
+    livestock_apiary: LivestockApiarySection
+    # Legacy combined section (for backwards compat)
     core: CorePlanSection
     sustainability: SustainabilitySection
     cashflow: CashFlowSection
@@ -763,7 +791,96 @@ def _risk_profile_instruction(risk_profile: str) -> str:
 
 # ---------- LangGraph nodes ----------
 
+def _node_profile_synthesis(state: PlanGraphState) -> dict:
+    """First node: synthesize the profile + state the strategy. Small + fast."""
+    profile = state["profile"]
+    goals = state["goals"]
+    risk_profile = state.get("risk_profile", goals.risk_profile)
+
+    model = _make_planner_model(timeout=180)  # smaller call; tighter timeout
+    planner = model.with_structured_output(ProfileSynthesisSection)
+    prompt = (
+        f"{_risk_profile_instruction(risk_profile)}\n\n"
+        f"FARM PROFILE:\n{profile.model_dump_json(indent=2)}\n\n"
+        f"PLANNING GOALS:\n{goals.model_dump_json(indent=2)}\n\n"
+        "Generate ONLY the ProfileSynthesisSection: a one-paragraph plan_summary "
+        "(what you're going to recommend overall), a one-paragraph farmer_profile_inferred "
+        "(synthesis of the situation), and risk_diversification_strategy (how the crop+livestock+apiary "
+        "mix will hedge risk). Do NOT generate the crop list, livestock, or cash flow yet — those "
+        "come later. Keep this section concise."
+    )
+    result = _call_with_retry(planner, _build_system_prompt(), prompt,
+                              label=f"{risk_profile}:profile_synth")
+    return {"profile_synthesis": result}
+
+
+def _node_crop_selection(state: PlanGraphState) -> dict:
+    """Generate the crop list — the largest output of the pipeline. Isolated for reliability."""
+    profile = state["profile"]
+    goals = state["goals"]
+    synth = state["profile_synthesis"]
+    risk_profile = state.get("risk_profile", goals.risk_profile)
+
+    model = _make_planner_model(timeout=300)
+    planner = model.with_structured_output(CropSelectionSection)
+    prompt = (
+        f"{_risk_profile_instruction(risk_profile)}\n\n"
+        f"FARM PROFILE:\n{profile.model_dump_json(indent=2)}\n\n"
+        f"PLANNING GOALS:\n{goals.model_dump_json(indent=2)}\n\n"
+        f"PROFILE SYNTHESIS (you already wrote this; align crop picks with it):\n"
+        f"{synth.model_dump_json(indent=2)}\n\n"
+        "Generate ONLY the CropSelectionSection: 3-6 crops with FULL variety-level detail "
+        "(crop_name, variety, role, acres_allocated, time_to_first_yield_years, etc. — all CropInPlan fields). "
+        "Balance short-term cash crops / medium-term / perennials / boundary. Match to climate / soil / "
+        "wildlife / labor / investment. Use the knowledge base for varieties, suppliers, subsidies. "
+        "If goals.interested_exotic_crops is non-empty, consider those varieties seriously."
+    )
+    result = _call_with_retry(planner, _build_system_prompt(), prompt,
+                              label=f"{risk_profile}:crop_selection")
+    return {"crop_selection": result}
+
+
+def _node_livestock_apiary(state: PlanGraphState) -> dict:
+    """Livestock + apiary only — small, fast, parallelizable with crop_selection."""
+    profile = state["profile"]
+    goals = state["goals"]
+    synth = state["profile_synthesis"]
+    risk_profile = state.get("risk_profile", goals.risk_profile)
+
+    # Skip the LLM call entirely if goals don't request livestock + apiary
+    wants_dairy = goals.include_dairy
+    wants_apiary = goals.include_apiary
+    wants_poultry = goals.include_poultry
+    wants_fish = goals.include_fish
+    if not any([wants_dairy, wants_apiary, wants_poultry, wants_fish]):
+        return {"livestock_apiary": LivestockApiarySection(livestock=[], apiary=None)}
+
+    model = _make_planner_model(timeout=180)
+    planner = model.with_structured_output(LivestockApiarySection)
+    request_lines = []
+    if wants_dairy: request_lines.append("- DAIRY: recommend breed + count (Sahiwal/Gir/Murrah etc.)")
+    if wants_apiary: request_lines.append("- APIARY: recommend bee species + box count + placement near flowering crops")
+    if wants_poultry: request_lines.append("- POULTRY: recommend type + count (Aseel/Kadaknath/layer/broiler)")
+    if wants_fish: request_lines.append("- FISH: recommend species + pond setup if water is available")
+
+    prompt = (
+        f"{_risk_profile_instruction(risk_profile)}\n\n"
+        f"FARM PROFILE:\n{profile.model_dump_json(indent=2)}\n\n"
+        f"PLANNING GOALS:\n{goals.model_dump_json(indent=2)}\n\n"
+        f"PROFILE SYNTHESIS:\n{synth.model_dump_json(indent=2)}\n\n"
+        "Generate ONLY the LivestockApiarySection. Goals request:\n"
+        + "\n".join(request_lines) + "\n\n"
+        "Match indigenous + heat-tolerant breeds (Sahiwal, Gir, Murrah). For apiary, "
+        "place hives within 100-200m of flowering crops in the plan. Include monthly net "
+        "revenue ranges + integration_with_crops + applicable govt schemes (NLM, MIDH)."
+    )
+    result = _call_with_retry(planner, _build_system_prompt(), prompt,
+                              label=f"{risk_profile}:livestock_apiary")
+    return {"livestock_apiary": result}
+
+
 def _node_core(state: PlanGraphState) -> dict:
+    """Legacy single-call core node — preserved for non-graph callers."""
     profile = state["profile"]
     goals = state["goals"]
     risk_profile = state.get("risk_profile", goals.risk_profile)
@@ -776,8 +893,7 @@ def _node_core(state: PlanGraphState) -> dict:
         f"PLANNING GOALS:\n{goals.model_dump_json(indent=2)}\n\n"
         "Generate the CORE plan section: plan_summary, farmer_profile_inferred, "
         "crops (3-6 with variety-level detail), livestock, apiary, "
-        "risk_diversification_strategy. Match crops to climate / soil / wildlife / labor / "
-        "investment. Use the knowledge base for variety, supplier, scheme references."
+        "risk_diversification_strategy."
     )
     result = _call_with_retry(planner, _build_system_prompt(), prompt,
                               label=f"{risk_profile}:core")
@@ -785,18 +901,32 @@ def _node_core(state: PlanGraphState) -> dict:
 
 
 def _node_sustainability(state: PlanGraphState) -> dict:
+    """Runs after crops + livestock are decided. Recommends practices that fit the mix."""
     profile = state["profile"]
     goals = state["goals"]
-    core = state["core"]
     risk_profile = state.get("risk_profile", goals.risk_profile)
 
-    model = _make_planner_model()
+    # Build a compact "core" context from the new split sections (or fall back to legacy)
+    if "profile_synthesis" in state and "crop_selection" in state:
+        synth = state["profile_synthesis"]
+        crops = state["crop_selection"]
+        la = state.get("livestock_apiary", LivestockApiarySection())
+        core_ctx = (
+            f"SYNTHESIS: {synth.plan_summary}\n"
+            f"CROPS: {[c.crop_name + (' (' + c.variety + ')' if c.variety else '') for c in crops.crops]}\n"
+            f"LIVESTOCK: {[(l.type, l.breed, l.count) for l in la.livestock]}\n"
+            f"APIARY: {la.apiary.bee_species + ' x ' + str(la.apiary.bee_box_count) if la.apiary else 'none'}"
+        )
+    else:
+        core_ctx = state["core"].model_dump_json(indent=2)
+
+    model = _make_planner_model(timeout=240)
     planner = model.with_structured_output(SustainabilitySection)
     prompt = (
         f"{_risk_profile_instruction(risk_profile)}\n\n"
         f"FARM PROFILE:\n{profile.model_dump_json(indent=2)}\n\n"
         f"PLANNING GOALS:\n{goals.model_dump_json(indent=2)}\n\n"
-        f"CORE PLAN (do not contradict — extend with):\n{core.model_dump_json(indent=2)}\n\n"
+        f"CORE PLAN ALREADY DECIDED:\n{core_ctx}\n\n"
         "Generate SUSTAINABILITY + LOGISTICS: 3-6 sustainability_practices (ZBNF, drip, "
         "biogas, agroforestry, etc.), organic_transition_path (if applicable), "
         "govt_subsidies_to_pursue, suppliers_to_contact, market_channels_to_develop."
@@ -809,19 +939,42 @@ def _node_sustainability(state: PlanGraphState) -> dict:
 def _node_cashflow(state: PlanGraphState) -> dict:
     profile = state["profile"]
     goals = state["goals"]
-    core = state["core"]
     sust = state["sustainability"]
     risk_profile = state.get("risk_profile", goals.risk_profile)
     horizon = goals.planning_horizon_years
 
-    model = _make_planner_model()
+    if "crop_selection" in state:
+        crops_summary = "\n".join(
+            f"- {c.crop_name}{' (' + c.variety + ')' if c.variety else ''} · {c.role} · "
+            f"{c.acres_allocated} ac · Y1 ₹{c.year_1_investment_inr} · breakeven Y{c.breakeven_year} "
+            f"· peak Y{c.peak_production_year_start}-{c.peak_production_year_end}"
+            for c in state["crop_selection"].crops
+        )
+        la = state.get("livestock_apiary", LivestockApiarySection())
+        livestock_summary = "\n".join(
+            f"- {l.type} {l.breed} x{l.count} · monthly net {l.monthly_net_inr_range}"
+            for l in la.livestock
+        )
+        apiary_summary = (
+            f"- {la.apiary.bee_species} x {la.apiary.bee_box_count} boxes · "
+            f"{la.apiary.expected_revenue_inr_per_year} yearly"
+        ) if la.apiary else ""
+        core_ctx = (
+            f"CROPS:\n{crops_summary}\n\n"
+            f"LIVESTOCK:\n{livestock_summary or '(none)'}\n\n"
+            f"APIARY:\n{apiary_summary or '(none)'}"
+        )
+    else:
+        core_ctx = state["core"].model_dump_json(indent=2)
+
+    model = _make_planner_model(timeout=240)
     planner = model.with_structured_output(CashFlowSection)
     prompt = (
         f"{_risk_profile_instruction(risk_profile)}\n\n"
         f"FARM PROFILE:\n{profile.model_dump_json(indent=2)}\n\n"
         f"PLANNING GOALS:\n{goals.model_dump_json(indent=2)}\n\n"
-        f"CORE PLAN:\n{core.model_dump_json(indent=2)}\n\n"
-        f"SUSTAINABILITY + LOGISTICS:\n{sust.model_dump_json(indent=2)}\n\n"
+        f"CORE PLAN ALREADY DECIDED:\n{core_ctx}\n\n"
+        f"SUSTAINABILITY:\n{sust.model_dump_json(indent=2)}\n\n"
         f"Generate CASH FLOW + ACTIONS for the {horizon}-year horizon. "
         f"year_by_year_cash_flow MUST have entries Y1..Y{horizon} reflecting perennial "
         "breakeven timelines (lemon Y4, avocado Y5, dragon fruit Y2-3). "
@@ -833,23 +986,45 @@ def _node_cashflow(state: PlanGraphState) -> dict:
 
 
 def _node_assemble(state: PlanGraphState) -> dict:
-    """Deterministic stitching — no LLM."""
+    """Deterministic stitching — no LLM. Combines either the split sections or
+    the legacy single core section."""
     profile = state["profile"]
-    core = state["core"]
     sust = state["sustainability"]
     cf = state["cashflow"]
+
+    if "profile_synthesis" in state and "crop_selection" in state:
+        # New path — 3 split sections
+        synth = state["profile_synthesis"]
+        crops_section = state["crop_selection"]
+        la = state.get("livestock_apiary", LivestockApiarySection())
+        plan_summary = synth.plan_summary
+        farmer_profile_inferred = synth.farmer_profile_inferred
+        risk_strategy = synth.risk_diversification_strategy
+        crops = crops_section.crops
+        livestock = la.livestock
+        apiary = la.apiary
+    else:
+        # Legacy combined core
+        core = state["core"]
+        plan_summary = core.plan_summary
+        farmer_profile_inferred = core.farmer_profile_inferred
+        risk_strategy = core.risk_diversification_strategy
+        crops = core.crops
+        livestock = core.livestock
+        apiary = core.apiary
+
     plan = FarmPlan(
         plan_id=f"plan_{uuid4().hex[:8]}",
         farmer_id=profile.farmer_id,
         generated_at=datetime.now(timezone.utc).isoformat(),
-        plan_summary=core.plan_summary,
-        farmer_profile_inferred=core.farmer_profile_inferred,
-        crops=core.crops,
-        livestock=core.livestock,
-        apiary=core.apiary,
+        plan_summary=plan_summary,
+        farmer_profile_inferred=farmer_profile_inferred,
+        crops=crops,
+        livestock=livestock,
+        apiary=apiary,
         sustainability_practices=sust.sustainability_practices,
         year_by_year_cash_flow=cf.year_by_year_cash_flow,
-        risk_diversification_strategy=core.risk_diversification_strategy,
+        risk_diversification_strategy=risk_strategy,
         organic_transition_path=sust.organic_transition_path,
         govt_subsidies_to_pursue=sust.govt_subsidies_to_pursue,
         suppliers_to_contact=sust.suppliers_to_contact,
@@ -889,20 +1064,48 @@ def _node_critique(state: PlanGraphState) -> dict:
 def build_planner_graph(checkpointer=None):
     """Build the per-option planning StateGraph.
 
-    Linear: core → sustainability → cashflow → assemble → critique.
+    Shape (7 nodes, with crops + livestock running in parallel):
+
+        START
+          ↓
+        profile_synthesis              (small, fast)
+          ├──→ crop_selection          (medium, the big LLM output) ─┐
+          └──→ livestock_apiary        (small, skipped if not requested) ─┤
+                                                                          ↓
+                                                                  sustainability
+                                                                          ↓
+                                                                       cashflow
+                                                                          ↓
+                                                                       assemble (no LLM)
+                                                                          ↓
+                                                                       critique
+                                                                          ↓
+                                                                         END
+
+    sustainability waits for BOTH crop_selection AND livestock_apiary (LangGraph
+    default join behavior on multiple incoming edges).
     """
     if not _LANGGRAPH_AVAILABLE:
         raise RuntimeError("langgraph not installed — `pip install langgraph`")
 
     g = StateGraph(PlanGraphState)
-    g.add_node("core", _node_core)
+    g.add_node("profile_synthesis", _node_profile_synthesis)
+    g.add_node("crop_selection", _node_crop_selection)
+    g.add_node("livestock_apiary", _node_livestock_apiary)
     g.add_node("sustainability", _node_sustainability)
     g.add_node("cashflow", _node_cashflow)
     g.add_node("assemble", _node_assemble)
     g.add_node("critique", _node_critique)
 
-    g.add_edge(START, "core")
-    g.add_edge("core", "sustainability")
+    # Entry → profile synthesis
+    g.add_edge(START, "profile_synthesis")
+    # Fan out to crops + livestock in parallel
+    g.add_edge("profile_synthesis", "crop_selection")
+    g.add_edge("profile_synthesis", "livestock_apiary")
+    # Join into sustainability
+    g.add_edge("crop_selection", "sustainability")
+    g.add_edge("livestock_apiary", "sustainability")
+    # Sequential tail
     g.add_edge("sustainability", "cashflow")
     g.add_edge("cashflow", "assemble")
     g.add_edge("assemble", "critique")

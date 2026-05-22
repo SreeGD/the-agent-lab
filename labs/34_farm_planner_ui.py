@@ -394,20 +394,34 @@ def page_generate():
         if st.button("Generate plan", type="primary"):
             g.risk_profile = risk_profile
             status = st.status(
-                f"Generating {risk_profile} plan (LangGraph: 5 nodes, 4 LLM calls)...",
+                f"Generating {risk_profile} plan (7 nodes, 6 LLM calls)...",
                 expanded=True,
             )
             try:
-                events = list(engine.stream_plan_via_graph(p, g, risk_profile=risk_profile))
-                for ev in events:
+                # Friendly labels per node — UI sees these as they complete
+                node_labels = {
+                    "profile_synthesis": "📝 Profile synthesis + strategy",
+                    "crop_selection":    "🌾 Crop selection (the big one)",
+                    "livestock_apiary":  "🐄 Livestock + apiary",
+                    "sustainability":    "🌱 Sustainability practices + subsidies",
+                    "cashflow":          "💰 10-year cash flow + next steps",
+                    "assemble":          "🧩 Assembling plan (deterministic)",
+                    "critique":          "🎯 Devil's advocate critique",
+                }
+                plan: engine.FarmPlan | None = None
+                critique: engine.PlanCritique | None = None
+                for ev in engine.stream_plan_via_graph(p, g, risk_profile=risk_profile):
                     for node, delta in ev.items():
-                        status.write(f"✓ Node `{node}` done")
-                # graph state is in checkpointer; pull final from the last event
-                plan_data = next((d["plan"] for d in (e for e in events for k, e in [(k, v) for k, v in e.items()] if "plan" in e) if "plan" in d), None)
-                # Simpler: re-run via invoke to get final
-                plan, critique = engine.generate_plan_via_graph(
-                    p, g, risk_profile=risk_profile, use_checkpointer=False
-                )
+                        label = node_labels.get(node, node)
+                        status.write(f"✓ {label} done")
+                        if "plan" in delta:
+                            plan = delta["plan"]
+                        if "critique" in delta:
+                            critique = delta["critique"]
+
+                if plan is None or critique is None:
+                    raise RuntimeError("Graph completed but final plan/critique missing")
+
                 engine.save_plan(plan)
                 score = engine.score_sustainability(plan)
                 st.session_state.current_plan = plan
