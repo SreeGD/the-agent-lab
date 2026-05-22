@@ -1,0 +1,513 @@
+{
+  "plan_id": "plan_adf3782f",
+  "farmer_id": "sample_suryapet",
+  "generated_at": "2026-05-22T06:47:20.664783+00:00",
+  "plan_summary": "A 10-year diversification-resilience plan for Ravi Kumar's 5-acre farm in Kethepally, Suryapet. The plan retains the existing cotton (2 ac) and pigeonpea (1 ac) as short-term cash anchors, then progressively converts 2 acres into high-value perennials — Thailand Lemon (1 ac) and Dragon Fruit (0.5 ac pilot) — with commercial Moringa on the boundary. A Fuerte/Pollock Avocado micro-pilot (0.25 ac) is introduced in Year 2 after lemon establishment is confirmed. Dairy is upgraded from 1 local cross to 2 Sahiwal cows, and a 10-box Apis mellifera apiary is added for pollination synergy and honey income. ZBNF transition begins in Year 1 via Jeevamruta and vermicomposting, targeting organic certification by Year 4. Total Year 1 investment is kept within ₹4 lakh. By Year 6+, projected net farm income is ₹6–10 lakh/year across all enterprises.",
+  "farmer_profile_inferred": "Small-scale Suryapet farmer, 5 acres split across two parcels of red chalka + red loam soil, pH 6.8 (ideal for perennials), drip-already-installed, bore well, 3 adult workers, moderate investment capacity (₹4L), wildlife pressure from monkeys + peacocks (3.5 km forest), prior maize loss to monkeys — avoid maize/open-grain crops. Transitioning to organic. Open to agroforestry. Existing cotton + pigeonpea provide near-term cash. Single local cross cow provides manure base. No storage or processing. Primary income: farming only. Risk tolerance: moderate with pilot-first preference.",
+  "crops": [
+    {
+      "crop_name": "Cotton",
+      "variety": "Bt Cotton (NHH 44 or Ankur 651)",
+      "local_name": "Patti",
+      "role": "short_term_cash_crop",
+      "acres_allocated": 2.0,
+      "time_to_first_yield_years": 0.5,
+      "peak_production_year_start": 1,
+      "peak_production_year_end": 3,
+      "expected_yield_per_acre": "8–12 quintals/acre seed cotton",
+      "revenue_per_acre_at_peak_inr": "₹60,000–₹1,00,000",
+      "year_1_investment_inr": "₹25,000–₹35,000",
+      "annual_maintenance_inr": "₹20,000–₹30,000",
+      "breakeven_year": 1,
+      "suitable_for_climate": true,
+      "climate_concerns": [
+        "Erratic monsoon (2019, 2023 drought history) — drip backup critical"
+      ],
+      "soil_requirements": [
+        "Red loam preferred; avoid waterlogged patches"
+      ],
+      "disease_risks": [
+        "Root rot in waterlogged patches",
+        "Leaf curl virus (whitefly-vectored)"
+      ],
+      "pest_risks": [
+        "Pink bollworm",
+        "Bollworm (Helicoverpa)",
+        "Whitefly (sucking pest)"
+      ],
+      "market_channels": [
+        "Suryapet local mandi",
+        "Jangaon ginning mills (90 km)",
+        "APMC regulated"
+      ],
+      "seasonal_price_windows": "Oct–Dec harvest; prices peak Jan–Mar when arrivals thin",
+      "govt_subsidies_available": [
+        "Rythu Bandhu ₹10,000/acre/year",
+        "PMFBY crop insurance",
+        "PM-KISAN ₹6,000/year"
+      ],
+      "suppliers_known": [
+        "Local seed dealers Suryapet",
+        "Ankur Seeds",
+        "Nuziveedu Seeds"
+      ],
+      "risk_flags": [
+        "Price volatility is primary risk — hedge with PMFBY",
+        "Reduce to 1.5 ac by Year 4 as perennials mature"
+      ],
+      "why_it_fits": [
+        "Already established on farm — zero replanting cost",
+        "Red loam parcel suits cotton well",
+        "Existing KCC credit covers input costs",
+        "Provides Year 1–3 cash flow while perennials establish"
+      ],
+      "pairs_well_with": [
+        "Greengram intercrop (harvested before cotton peaks)",
+        "Pigeonpea on boundary"
+      ],
+      "organic_compatible": false,
+      "pollinator_friendly": false,
+      "is_exotic_high_value": false,
+      "export_potential": "domestic_metro",
+      "value_addition_options": [
+        "Sell to ginning mill for lint premium",
+        "Retain cottonseed for oil extraction"
+      ],
+      "confidence_self": 0.88,
+      "confidence_meta": 0.88
+    },
+    {
+      "crop_name": "Pigeonpea",
+      "variety": "ICPL 87119 (Asha) or PRG 158",
+      "local_name": "Kandi",
+      "role": "intercrop",
+      "acres_allocated": 1.0,
+      "time_to_first_yield_years": 0.5,
+      "peak_production_year_start": 1,
+      "peak_production_year_end": 10,
+      "expected_yield_per_acre": "6–8 quintals/acre",
+      "revenue_per_acre_at_peak_inr": "₹30,000–₹50,000",
+      "year_1_investment_inr": "₹10,000–₹15,000",
+      "annual_maintenance_inr": "₹8,000–₹12,000",
+      "breakeven_year": 1,
+      "suitable_for_climate": true,
+      "climate_concerns": [
+        "Excess moisture in black soil patches causes wilt — red soil parcel preferred"
+      ],
+      "soil_requirements": [
+        "Red chalka or red loam; pH 6.0–7.5"
+      ],
+      "disease_risks": [
+        "Fusarium wilt",
+        "Sterility mosaic virus"
+      ],
+      "pest_risks": [
+        "Pod borer (Helicoverpa)",
+        "Maruca pod borer"
+      ],
+      "market_channels": [
+        "Suryapet mandi",
+        "Hyderabad Monda Market",
+        "NAFED MSP procurement"
+      ],
+      "seasonal_price_windows": "Jan–Mar post-harvest; MSP floor provides stability",
+      "govt_subsidies_available": [
+        "MSP procurement via NAFED",
+        "PM-KISAN",
+        "Rythu Bandhu"
+      ],
+      "suppliers_known": [
+        "ICRISAT Patancheru (improved varieties)",
+        "Local KVK seed bank"
+      ],
+      "risk_flags": [
+        "Sterility mosaic virus can wipe out crop — use certified virus-free seed"
+      ],
+      "why_it_fits": [
+        "Already thriving on farm — zero replanting cost",
+        "Fixes atmospheric nitrogen — reduces fertilizer cost for adjacent crops",
+        "Drought-tolerant — survives 2019/2023-type dry spells rainfed",
+        "MSP-backed price floor provides income security",
+        "Intercrop with lemon in Years 1–3 while trees establish"
+      ],
+      "pairs_well_with": [
+        "Sorghum (traditional Deccan intercrop)",
+        "Lemon (Years 1–3 cover crop)",
+        "Cotton boundary"
+      ],
+      "organic_compatible": true,
+      "pollinator_friendly": true,
+      "is_exotic_high_value": false,
+      "export_potential": "domestic_metro",
+      "value_addition_options": [
+        "Dal milling (local)",
+        "Sell whole to NAFED at MSP"
+      ],
+      "confidence_self": 0.9,
+      "confidence_meta": 0.9
+    },
+    {
+      "crop_name": "Thailand Lemon",
+      "variety": "Thailand Lemon (Citrus limon — Thai selection)",
+      "local_name": "Nimma",
+      "role": "perennial_anchor",
+      "acres_allocated": 1.0,
+      "time_to_first_yield_years": 2.0,
+      "peak_production_year_start": 5,
+      "peak_production_year_end": 10,
+      "expected_yield_per_acre": "5–8 tonnes/acre at peak (Year 8+)",
+      "revenue_per_acre_at_peak_inr": "₹75,000–₹1,20,000",
+      "year_1_investment_inr": "₹45,000–₹60,000",
+      "annual_maintenance_inr": "₹15,000–₹25,000",
+      "breakeven_year": 4,
+      "suitable_for_climate": true,
+      "climate_concerns": [
+        "Summer 38–40°C — mulch root zone; drip irrigation mandatory",
+        "Drought years (2019, 2023 type) — bore well backup critical"
+      ],
+      "soil_requirements": [
+        "Red chalka or red loam; pH 6.0–7.5; well-drained; no waterlogging"
+      ],
+      "disease_risks": [
+        "Citrus greening (HLB) — no cure; use certified disease-free planting material",
+        "Gummosis (Phytophthora) — avoid waterlogging"
+      ],
+      "pest_risks": [
+        "Citrus psylla (Diaphorina citri)",
+        "Leaf miner",
+        "Fruit fly"
+      ],
+      "market_channels": [
+        "Hyderabad Monda Market (120 km)",
+        "Suryapet local mandi",
+        "Preserve/condiment manufacturers Suryapet–Vijayawada cluster",
+        "Citrus juice extractors Tirupati/Nellore"
+      ],
+      "seasonal_price_windows": "Peak price: April–May (summer demand spike) and November (Diwali). Trough: July–August monsoon glut.",
+      "govt_subsidies_available": [
+        "MIDH 40% on planting material",
+        "MIDH 80–100% on drip (already installed — claim retroactively)",
+        "Rythu Bandhu ₹10,000/acre/year"
+      ],
+      "suppliers_known": [
+        "SKLTSHU Rajendranagar (govt certified)",
+        "Deccan Exotics Kukatpally Hyderabad",
+        "ICAR-CISH Lucknow (Pramalini backup)"
+      ],
+      "risk_flags": [
+        "HLB disease — buy only certified disease-free grafts from SKLTSHU",
+        "Do NOT plant in waterlogged micro-patches",
+        "Year 1–2 zero revenue — pigeonpea intercrop bridges cash flow"
+      ],
+      "why_it_fits": [
+        "Suryapet red chalka soil at pH 6.8 is ideal for citrus",
+        "Drip already installed — critical for commercial lemon",
+        "Telangana structural deficit of 30–40K tonnes/year = ₹5–15/kg structural premium",
+        "Wildlife-resilient — monkeys and peacocks avoid mature citrus",
+        "Intercrop with pigeonpea in Years 1–3 for nitrogen and cash flow",
+        "40–50% price premium over Kagzi lime"
+      ],
+      "pairs_well_with": [
+        "Pigeonpea intercrop Years 1–3",
+        "Apiary within 150m for 20–40% yield boost",
+        "Moringa boundary for windbreak"
+      ],
+      "organic_compatible": true,
+      "pollinator_friendly": true,
+      "is_exotic_high_value": false,
+      "export_potential": "domestic_metro",
+      "value_addition_options": [
+        "Lemon pickle/preserve (local processing)",
+        "Lemon juice concentrate (Tirupati buyers)",
+        "Dried lemon peel (export niche)"
+      ],
+      "confidence_self": 0.87,
+      "confidence_meta": 0.85
+    },
+    {
+      "crop_name": "Dragon Fruit",
+      "variety": "Red-flesh Vietnamese (Hylocereus polyrhizus) — pilot",
+      "local_name": "Dragon Pandu",
+      "role": "medium_term_crop",
+      "acres_allocated": 0.5,
+      "time_to_first_yield_years": 1.5,
+      "peak_production_year_start": 4,
+      "peak_production_year_end": 10,
+      "expected_yield_per_acre": "6–8 tonnes/acre at peak (Year 5+)",
+      "revenue_per_acre_at_peak_inr": "₹3,00,000–₹5,00,000",
+      "year_1_investment_inr": "₹1,50,000–₹2,00,000",
+      "annual_maintenance_inr": "₹20,000–₹30,000",
+      "breakeven_year": 3,
+      "suitable_for_climate": true,
+      "climate_concerns": [
+        "Extreme summer >42°C may stress young plants — shade net first summer",
+        "Monsoon waterlogging — raised bed planting mandatory"
+      ],
+      "soil_requirements": [
+        "Red chalka (excellent drainage) — ideal",
+        "Raised beds 30cm if any waterlogging risk",
+        "pH 6.0–7.0 preferred"
+      ],
+      "disease_risks": [
+        "Anthracnose in humid monsoon — copper-based spray preventive",
+        "Stem canker — avoid overwatering"
+      ],
+      "pest_risks": [
+        "Stem rot (fungal) in waterlogged conditions",
+        "Mealybugs (minor)"
+      ],
+      "market_channels": [
+        "Hyderabad Monda Market (120 km)",
+        "BigBasket / Reliance Fresh direct supply",
+        "Hotels + restaurants Hyderabad (premium channel)",
+        "WhatsApp-based direct retail (emerging)"
+      ],
+      "seasonal_price_windows": "Year-round fruiting with 5–6 flushes/year; peak price Oct–Feb when supply is lowest",
+      "govt_subsidies_available": [
+        "MIDH 50% on planting material",
+        "Rythu Bandhu ₹10,000/acre/year"
+      ],
+      "suppliers_known": [
+        "Krishi Nursery Hyderabad",
+        "SKLTSHU Rajendranagar",
+        "Indo Israel Agriculture"
+      ],
+      "risk_flags": [
+        "Pilot 0.5 acre first — expand to 1 acre in Year 3 if successful",
+        "Concrete pole + wire trellis setup is the largest cost — get 3 contractor quotes",
+        "Night-blooming flowers may need hand pollination for maximum fruit set"
+      ],
+      "why_it_fits": [
+        "Tolerates 38–42°C Suryapet summer — no heat stress",
+        "Minimal water requirement (~250mm equivalent) — suits bore well constraint",
+        "CRITICAL: Monkeys and wild boar avoid cactus — zero wildlife pressure",
+        "Peacocks do not damage cactus plants",
+        "Highest net ₹/acre of any crop in this plan at peak",
+        "MIDH 50% subsidy on planting material reduces Year 1 cost",
+        "18–24 month breakeven — fastest perennial cash return"
+      ],
+      "pairs_well_with": [
+        "Apiary (dragon fruit is night-blooming — hand pollination or bat/bee assist)",
+        "Moringa boundary windbreak"
+      ],
+      "organic_compatible": true,
+      "pollinator_friendly": true,
+      "is_exotic_high_value": true,
+      "export_potential": "domestic_metro",
+      "value_addition_options": [
+        "Fresh fruit premium retail (₹200–400/kg Hyderabad retail)",
+        "Dragon fruit juice/pulp (processing unit future)",
+        "Dragon fruit powder (export niche)"
+      ],
+      "confidence_self": 0.82,
+      "confidence_meta": 0.8
+    },
+    {
+      "crop_name": "Moringa (Commercial Drumstick)",
+      "variety": "PKM-1",
+      "local_name": "Munagakaya",
+      "role": "boundary_crop",
+      "acres_allocated": 0.25,
+      "time_to_first_yield_years": 0.5,
+      "peak_production_year_start": 2,
+      "peak_production_year_end": 10,
+      "expected_yield_per_acre": "Fresh pods: 8–12 tonnes/acre; Leaf powder: 1–2 tonnes/acre",
+      "revenue_per_acre_at_peak_inr": "₹80,000–₹1,20,000",
+      "year_1_investment_inr": "₹8,000–₹12,000",
+      "annual_maintenance_inr": "₹5,000–₹8,000",
+      "breakeven_year": 1,
+      "suitable_for_climate": true,
+      "climate_concerns": [
+        "Handles 38–40°C Suryapet summer without stress — native to semi-arid tropics"
+      ],
+      "soil_requirements": [
+        "Any well-drained soil; red chalka excellent",
+        "pH 6.0–8.0 tolerant"
+      ],
+      "disease_risks": [
+        "Root rot if waterlogged — plant on bunds/boundaries with good drainage"
+      ],
+      "pest_risks": [
+        "Bud worm (Noorda blitealis)",
+        "Bark-eating caterpillar"
+      ],
+      "market_channels": [
+        "Suryapet local vegetable market (fresh pods)",
+        "Hyderabad Monda Market (bulk pods)",
+        "Leaf powder: Hyderabad + Bangalore processing units",
+        "Export: leaf powder to EU/US health food market via Hyderabad exporters"
+      ],
+      "seasonal_price_windows": "Fresh pods peak: Oct–Feb. Leaf powder: year-round demand from processors.",
+      "govt_subsidies_available": [
+        "MIDH horticulture support",
+        "Rythu Bandhu ₹10,000/acre/year"
+      ],
+      "suppliers_known": [
+        "SKLTSHU Rajendranagar",
+        "Local KVK seed bank",
+        "Tamil Nadu Agricultural University (PKM-1 source)"
+      ],
+      "risk_flags": [
+        "Plant on farm boundary/bunds — does not consume productive acreage",
+        "Leaf powder processing requires drying shed (future investment Year 3+)"
+      ],
+      "why_it_fits": [
+        "Zero wildlife pressure — monkeys and peacocks avoid moringa",
+        "Boundary planting creates natural windbreak protecting lemon + dragon fruit",
+        "6-month first harvest — fastest cash return in plan",
+        "Triple revenue stream: pods + leaf powder + seeds",
+        "Extremely drought-tolerant — survives 2019/2023-type dry years rainfed",
+        "Leaf powder has export market (Hyderabad processors)",
+        "Nitrogen-fixing root zone improves adjacent soil"
+      ],
+      "pairs_well_with": [
+        "Lemon (windbreak + boundary)",
+        "Dragon fruit (windbreak on western edge)",
+        "Apiary (moringa flowers attract bees)"
+      ],
+      "organic_compatible": true,
+      "pollinator_friendly": true,
+      "is_exotic_high_value": false,
+      "export_potential": "international",
+      "value_addition_options": [
+        "Moringa leaf powder (₹200–500/kg wholesale)",
+        "Moringa seed oil (niche cosmetic market)",
+        "Dried pods for export"
+      ],
+      "confidence_self": 0.88,
+      "confidence_meta": 0.87
+    },
+    {
+      "crop_name": "Avocado",
+      "variety": "Fuerte (primary) + Pollock (pollinator pair)",
+      "local_name": "Avocado (Butter Fruit)",
+      "role": "perennial_anchor",
+      "acres_allocated": 0.25,
+      "time_to_first_yield_years": 3.0,
+      "peak_production_year_start": 6,
+      "peak_production_year_end": 10,
+      "expected_yield_per_acre": "3,000–5,000 kg/acre (micro-pilot scale, Year 6+)",
+      "revenue_per_acre_at_peak_inr": "₹4,50,000–₹7,50,000",
+      "year_1_investment_inr": "₹40,000–₹60,000",
+      "annual_maintenance_inr": "₹15,000–₹25,000",
+      "breakeven_year": 5,
+      "suitable_for_climate": true,
+      "climate_concerns": [
+        "Summer 38–40°C — Fuerte tolerates this; young trees need shade net first summer",
+        "Hot dry westerly winds — moringa/drumstick windbreak on western boundary is essential"
+      ],
+      "soil_requirements": [
+        "Red loam parcel preferred (better water retention than chalka)",
+        "Raised beds 30–45cm if any drainage doubt",
+        "pH 6.0–7.0 ideal; 6.8 is perfect"
+      ],
+      "disease_risks": [
+        "Phytophthora root rot — CRITICAL; use Ashdot 17 rootstock; avoid any waterlogging",
+        "Anthracnose post-harvest — copper sprays from fruit set"
+      ],
+      "pest_risks": [
+        "Fruit borer",
+        "Mites in dry season"
+      ],
+      "market_channels": [
+        "Hyderabad Monda Market (120 km)",
+        "BigBasket / Reliance Fresh direct supply",
+        "Hotels + restaurants Hyderabad (premium)",
+        "WhatsApp direct retail"
+      ],
+      "seasonal_price_windows": "Fuerte harvest: Feb–April. Prices peak Oct–Jan when imports dominate supply.",
+      "govt_subsidies_available": [
+        "MIDH 40% on planting material",
+        "Rythu Bandhu ₹10,000/acre/year"
+      ],
+      "suppliers_known": [
+        "Indo Israel Avocado (Ashdot 17 rootstock — non-negotiable)",
+        "Deccan Exotics Kukatpally Hyderabad (40-acre nursery Sangareddy)",
+        "SKLTSHU Rajendranagar"
+      ],
+      "risk_flags": [
+        "DO NOT use random-seedling grafts — Ashdot 17 rootstock only for Phytophthora resistance",
+        "DO NOT plant Hass variety — will fail in Suryapet summer",
+        "Pilot 0.25 acre strictly — expand only after Year 4 survival confirmation",
+        "Plant in Year 2 (not Year 1) — establish lemon first, learn drip management"
+      ],
+      "why_it_fits": [
+        "Fuerte + Pollock are green-skin varieties proven heat-tolerant in Telangana (unlike Hass which FAILS above 35°C)",
+        "Red loam parcel at pH 6.8 is ideal — well-drained, no waterlogging risk",
+        "Drip already installed — critical for avocado establishment",
+        "₹150/kg current wholesale = highest ₹/kg of any fruit in this plan",
+        "Pilot 0.25 acre (40–42 trees at 3.5×7m intensive spacing) limits downside risk",
+        "Hyderabad metro demand for avocado growing 25–30%/year"
+      ],
+      "pairs_well_with": [
+        "Pulse cover crop (greengram/cowpea) in Years 1–3 under canopy",
+        "Apiary within 150m for pollination boost",
+        "Moringa windbreak on western/southern edges"
+      ],
+      "organic_compatible": true,
+      "pollinator_friendly": true,
+      "is_exotic_high_value": true,
+      "export_potential": "domestic_metro",
+      "value_addition_options": [
+        "Fresh premium retail (₹150–250/kg Hyderabad)",
+        "Guacamole/paste processing (future)",
+        "Avocado oil (ultra-premium niche)"
+      ],
+      "confidence_self": 0.78,
+      "confidence_meta": 0.75
+    }
+  ],
+  "livestock": [
+    {
+      "type": "dairy_cow",
+      "breed": "Sahiwal (upgrade from local cross)",
+      "count": 2,
+      "space_required_sqft": 400,
+      "daily_feed_kg": 18.0,
+      "monthly_revenue_inr_range": "₹12,000–₹20,000",
+      "monthly_cost_inr_range": "₹6,000–₹9,000",
+      "monthly_net_inr_range": "₹6,000–₹11,000",
+      "integration_with_crops": [
+        "20–25 kg manure/cow/day → free Jeevamruta input for ZBNF transition",
+        "Manure covers ~2 acres of fertilizer need — reduces input cost ₹15,000–₹25,000/year",
+        "Urine collected for Jeevamruta preparation (ZBNF core input)",
+        "Biogas plant (future Year 2) converts manure to cooking gas + slurry compost"
+      ],
+      "breakeven_months": 14,
+      "govt_schemes_applicable": [
+        "NLM 25–50% subsidy on indigenous breed purchase",
+        "RKVY dairy support",
+        "NDDB milk procurement linkage (Vijaya/Heritage Foods)"
+      ],
+      "confidence_self": 0.85,
+      "confidence_meta": 0.83
+    }
+  ],
+  "apiary": {
+    "bee_species": "Apis mellifera",
+    "bee_box_count": 10,
+    "placement_strategy": "Place 5 boxes within 100m of Thailand Lemon block (pollination boost 20–40% yield increase). Place remaining 5 boxes near Dragon Fruit + Moringa boundary. Relocate 3–4 boxes to cotton field during flowering (Oct–Nov) for additional pollination. Shade boxes from direct afternoon sun. Ensure water source within 50m.",
+    "expected_yield_kg_per_box_per_year": 25.0,
+    "expected_revenue_inr_per_year": "₹62,500–₹75,000 (honey) + ₹30,000–₹60,000 estimated pollination yield uplift on lemon + dragon fruit",
+    "pollination_benefit_to_crops": [
+      "Thailand Lemon: 20–40% yield boost estimated ₹15,000–₹40,000/year additional revenue",
+      "Dragon Fruit: significant pollination benefit for fruit set",
+      "Moringa: bee-pollinated flowers improve pod set",
+      "Cotton: 15–25% yield improvement during flowering"
+    ],
+    "midh_subsidy_eligibility": true,
+    "confidence_self": 0.82,
+    "confidence_meta": 0.8
+  },
+  "sustainability_practices": [],
+  "year_by_year_cash_flow": [],
+  "risk_diversification_strategy": "",
+  "sustainability_score": 0.0,
+  "organic_transition_path": null,
+  "govt_subsidies_to_pursue": [],
+  "suppliers_to_contact": [],
+  "market_channels_to_develop": [],
+  "immediate_next_steps": [],
+  "pilot_recommendation": null,
+  "disclaimers": []
+}

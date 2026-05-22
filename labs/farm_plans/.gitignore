@@ -1,1 +1,2 @@
 *.json
+!sample_plan_*.json

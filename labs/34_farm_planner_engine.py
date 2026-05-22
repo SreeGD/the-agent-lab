@@ -485,7 +485,7 @@ def generate_farm_plan(profile: FarmProfile, goals: PlanningGoals,
     Retries on transient API errors (connection drop, timeout).
     """
     model = ChatAnthropic(model=ANSWER_MODEL, temperature=0,
-                          max_tokens=8192, timeout=240)
+                          max_tokens=8192, timeout=600)
     planner = model.with_structured_output(FarmPlan)
 
     user_prompt = (

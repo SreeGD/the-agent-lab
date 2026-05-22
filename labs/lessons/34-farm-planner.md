@@ -285,49 +285,69 @@ Prints: knowledge base size, profile directory, list of loaded profiles. No LLM 
 
 ## What a generated plan looks like (real output)
 
-A live run against the Suryapet sample profile (5 acres, red soil + chalka, partial irrigation via 1 bore well, monkey + peacock pressure, transitioning to organic, ₹4 lakh investment capacity) with goals = `diversification_resilience`, dairy + apiary included, exotic crops (avocado, dragon fruit, moringa) of interest, produces a plan that typically looks like:
+The committed [`farm_plans/sample_plan_suryapet.json`](../farm_plans/sample_plan_suryapet.json) is an **actual saved plan** generated against the Suryapet sample profile with `diversification_resilience` + dairy + apiary + exotic crops of interest = avocado/dragon fruit/moringa. Highlights below; the full JSON has every field populated.
 
-**Plan Summary** (LLM-generated, one paragraph)
-> A 5-acre integrated regenerative mix: 1.5 acres Thailand Lemon as the perennial anchor with Year-4 first yield and Year-8+ peak income; 1 acre pulses + millets rotation for short-term cash flow Years 1-2 while perennials develop; 0.5 acre Fuerte avocado pilot (per Telangana Hort Dept guidance to start small); 1 acre vegetable + groundnut rotation; drumstick + neem boundary plantings for wildlife defense and pollinator support; 1 indigenous Sahiwal dairy cow integrated for manure + monthly income; 4 Apis mellifera hives placed within 100m of lemon + drumstick blooms. ZBNF transition over Years 1-3.
+**Runtime: ~5.5-6 minutes** for the full plan (system prompt embedding the 7K-token KB + 8K-token structured output). Cost ~$0.20-0.30 with Sonnet. The engine's timeout is set to 600s for this reason; first request writes a cache, subsequent calls within 5 minutes read it cheaply.
 
-**Crops (5-6 typically)**
-- Lemon — *Thailand Lemon* (1.5 ac, perennial_anchor, Y1 invest ₹65K, Y8+ peak ₹50K-1L/ac, breakeven Y4)
-- Pigeonpea — *Redgram* (0.75 ac, short_term_cash_crop, ₹20K Y1, ₹25-40K/ac/cycle)
-- Ragi — *finger millet* (0.5 ac, short_term_cash_crop, ₹12K Y1, ₹15-25K/ac, monkey-resistant)
-- Avocado — *Fuerte* (0.5 ac, perennial_anchor PILOT, ₹1.5L Y1, ₹10-13L/ac at Y5+)
-- Drumstick — *PKM-1* (boundary, ₹8K total, ₹50K-1L/ac/yr at maturity, wildlife-proof)
-- Groundnut/vegetables rotation (1 ac, ₹40-60K Y1, monthly cash)
+### Plan summary (LLM-generated)
 
-**Livestock**
-- Sahiwal cow ×1 — 8-12 L/day milk, ₹5-12K/mo net, manure for ~1 acre, NLM 25-50% subsidy on indigenous breed
+> A 10-year diversification-resilience plan for Ravi Kumar's 5-acre farm in Kethepally, Suryapet. The plan retains the existing cotton (2 ac) and pigeonpea (1 ac) as short-term cash anchors, then progressively converts 2 acres into high-value perennials — **Thailand Lemon (1 ac) and Dragon Fruit (0.5 ac pilot)** — with commercial Moringa on the boundary. A **Fuerte/Pollock Avocado micro-pilot (0.25 ac)** is introduced in Year 2 after lemon establishment is confirmed. Dairy is upgraded from 1 local cross to **2 Sahiwal cows**, and a **10-box Apis mellifera apiary** is added for pollination synergy and honey income. ZBNF transition begins in Year 1 via Jeevamruta and vermicomposting, targeting organic certification by Year 4. Total Year 1 investment is kept within ₹4 lakh. By Year 6+, projected net farm income is **₹6–10 lakh/year** across all enterprises.
 
-**Apiary**
-- Apis mellifera × 4 boxes — 25 kg/box/yr honey (₹25K/yr revenue), 25-40% pollination boost to lemon + drumstick + groundnut, MIDH ₹2K/box subsidy
+### 6 crops (variety-level granularity)
 
-**Sustainability Practices (~5)**
-- ZBNF transition (₹0 incremental, 70-80% input cost cut by Y3)
-- Vermicomposting (₹15K setup, 6-month payback via reduced fertilizer)
-- Drip irrigation (already in place; 80% MIDH subsidy if expanding)
-- Mulching (free from on-farm residues)
-- Agroforestry (drumstick + neem boundaries; carbon credit potential)
+| Crop | Variety | Role | Acres | Y1 Investment | Confidence |
+|---|---|---|---|---|---|
+| Cotton | **Bt Cotton (NHH 44 or Ankur 651)** | short_term_cash_crop | 2.0 | ₹25-35K | 0.88 |
+| Pigeonpea | **ICPL 87119 (Asha) or PRG 158** | intercrop | 1.0 | ₹10-15K | 0.88 |
+| Thailand Lemon | **Thailand Lemon (Citrus limon — Thai selection)** | perennial_anchor | 1.0 | ₹45-60K | (high) |
+| Dragon Fruit | **Red-flesh Vietnamese (Hylocereus polyrhizus) — pilot** | medium_term_crop | 0.5 | ₹1.5-2L | (high) |
+| Moringa | **PKM-1 (commercial Drumstick)** | boundary_crop | 0.25 | ₹8-12K | (high) |
+| Avocado | **Fuerte (primary) + Pollock (pollinator pair)** | perennial_anchor (micro-pilot) | 0.25 | ₹40-60K | (medium) |
 
-**10-Year Cash Flow** (table form)
-- Y1: invest ₹4.0 L · revenue ₹50K (early pulses + dairy) · net **−₹3.5 L**
-- Y2: invest ₹40K · revenue ₹1.5L (pulses + millet + dairy) · net ₹1.1L
-- Y4: lemon first yield · net ₹1.8L
-- Y8+: peak · net **₹4-5 L/yr** (lemon mature + avocado bearing + dairy + apiary)
+**Notice the depth**: NOT "lemon" but "Thailand Lemon (Citrus limon — Thai selection)". NOT "cotton" but "Bt Cotton (NHH 44 or Ankur 651)" with the Telugu local name "Patti". NOT "pigeonpea" but the specific ICAR cultivar "ICPL 87119 (Asha)". Suppliers named per crop: Ankur Seeds, Nuziveedu Seeds for cotton; SKLTSHU Rajendranagar for perennials; Indo Israel Avocado for the Ashdot 17 rootstock. This is what knowledge grounding looks like — the LLM is not making up generic plausible-sounding names; it's surfacing the actual ICAR / Telangana extension recommended cultivars from the knowledge base.
 
-**Sustainability score**: typically 65-80/100 with this profile mix — score climbs as ZBNF establishes (Year 2+) and biogas/solar pump get added.
+### Livestock
 
-**Govt subsidies to pursue**: MIDH drip + planting material · MIDH apiary subsidy · NLM indigenous breed · Rythu Bandhu ₹50K/yr (5 ac × ₹10K) · PMFBY crop insurance
+| Type | Breed | Count | Monthly net | Notes |
+|---|---|---|---|---|
+| Dairy cow | **Sahiwal** (upgrade from local cross) | 2 | ₹6,000-11,000 | NLM 25-50% subsidy on indigenous |
 
-**Suppliers to contact**: SKLTSHU Rajendranagar (lemon + avocado saplings) · Deccan Exotics Hyderabad · Indo Israel Avocado (Ashdot 17 rootstock) · KVK Suryapet (apiary training)
+### Apiary
 
-**Pilot recommendation**: Start avocado at 0.5 ac before scaling; observe Year 1-2 establishment success; expand to 1+ ac in Year 3 if growth and disease pressure stay manageable.
+- **10 boxes of Apis mellifera** (Italian honey bee) for higher yield + Suryapet's intensive flowering crop calendar
+- Placement near lemon + drumstick + cotton/pigeonpea flowering windows
+- MIDH ₹2,000/box subsidy = ₹20,000 savings
+- Expected: 25 kg/box/year × ₹250/kg = ₹62,500/year honey revenue
+- Bonus: 25-40% pollination yield boost on lemon + drumstick (counted in main-plan revenue)
 
-**Disclaimers**: Validate with Suryapet KVK officer before planting. ₹ projections depend on market, weather, management quality. Wildlife pressure varies year-on-year; reassess deterrents annually.
+### Sustainability score: 31/100
 
-> *Note: live output varies per run as the LLM rebalances the plan. The shape (variety-level granularity, multi-year cash flow, govt-scheme references, supplier names, sustainability scoring) is consistent because the schema enforces it.*
+This is **lower than expected** because the LLM omitted the `sustainability_practices` list in this run (output truncated against the 8K max_tokens budget — the schema is large). Without practices, the deterministic scorer falls back to what's structurally present:
+
+- **Soil health: 0/20** (no practices listed; ZBNF mentioned in summary but not as a structured practice)
+- **Water efficiency: 3/20** (drought-tolerant millet not in this plan; drip already exists)
+- **Biodiversity: 20/20** (6 crops + apiary + livestock + boundary crop — max points)
+- **Carbon: 3/20** (perennials present, but no solar/biogas/explicit agroforestry)
+- **Input self-sufficiency: 5/20** (Sahiwal indigenous breed counts)
+
+**Production lesson**: this is exactly the kind of incomplete-output failure mode Session 21's UX patterns are for. The UI should:
+1. Surface the partial fill as "AI dropped sustainability practices — click to regenerate that section"
+2. Recommend reframing the prompt (split into 2 calls)
+3. NOT silently show a low sustainability score that's just due to LLM output truncation
+
+The fix: split `generate_farm_plan` into two LLM calls — first call generates `crops + livestock + apiary + summary` (already enough for ~6-7K output tokens), second call takes the first result and generates `sustainability_practices + cash_flow + next_steps + disclaimers`. Each call fits comfortably in 4-5K tokens. This is the multi-step structured-output pattern from Session 13 (CRAG) applied here. Recommended next iteration.
+
+### Markdown + PDF output sizes (real)
+
+- Markdown render: **11,675 chars / 148 lines**
+- PDF render: **8,809 bytes** (`fpdf2`, no images, structured tables)
+- Both produced in <1 second after the plan is in memory
+
+### Saved plan path
+
+`labs/farm_plans/sample_suryapet/plan_adf3782f.json` — committed copy at `labs/farm_plans/sample_plan_suryapet.json` for reference.
+
+> *Live output varies per run as the LLM rebalances the plan. The shape (variety-level granularity, specific subsidies, real supplier names, confidence per crop) is consistent because the schema + knowledge base enforce it.*
 
 ---
 
