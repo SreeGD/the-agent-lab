@@ -1,2 +1,5 @@
 *.json
 !sample_plan_*.json
+checkpoints.sqlite
+checkpoints.sqlite-shm
+checkpoints.sqlite-wal

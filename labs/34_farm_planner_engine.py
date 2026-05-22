@@ -732,10 +732,14 @@ from operator import add as _list_add
 
 try:
     from langgraph.graph import StateGraph, START, END
+    from langgraph.types import Send
     from langgraph.checkpoint.sqlite import SqliteSaver
     _LANGGRAPH_AVAILABLE = True
 except ImportError:
     _LANGGRAPH_AVAILABLE = False
+
+import operator
+from typing import Annotated as _Annotated
 
 
 CHECKPOINT_DB_PATH = HERE / "farm_plans" / "checkpoints.sqlite"
@@ -748,6 +752,130 @@ def _get_checkpointer():
     return SqliteSaver.from_conn_string(str(CHECKPOINT_DB_PATH))
 
 
+# =====================================================================
+# Native Anthropic SDK helpers with prompt caching
+#
+# We migrate the planner nodes off langchain_anthropic to anthropic.Anthropic
+# because:
+# 1. langchain-anthropic's adapter silently hangs `.with_structured_output()`
+#    when SystemMessage is passed a content-block list with cache_control.
+# 2. Native SDK supports cache_control + tool-use cleanly.
+# 3. Prompt caching saves ~90% on the KB system prompt (7K tokens) for
+#    every call after the first — dramatic time + cost reduction.
+#
+# Pattern: pass the KB as a system content-block list with cache_control,
+# pass the Pydantic schema as a tool, force tool_choice. Parse tool_use
+# input → Pydantic instance.
+# =====================================================================
+
+import anthropic as _anthropic
+
+_raw_anthropic_client = _anthropic.Anthropic()
+
+
+def _build_system_blocks_for_caching() -> list[dict]:
+    """Build the system prompt as a content-block list with cache_control.
+    First call writes the cache; subsequent calls within ~5 min read it cheaply."""
+    knowledge = _load_knowledge_base()
+    text = SYSTEM_PROMPT_TEMPLATE.format(knowledge_base=knowledge)
+    return [{
+        "type": "text",
+        "text": text,
+        "cache_control": {"type": "ephemeral"},
+    }]
+
+
+def _call_anthropic_structured(
+    schema_model: type[BaseModel],
+    user_prompt: str,
+    label: str = "call",
+    model: str = ANSWER_MODEL,
+    max_tokens: int = 4096,
+    timeout: int = 240,
+    max_retries: int = 3,
+) -> BaseModel:
+    """Call Anthropic API with structured output via tool-use + cache_control.
+
+    Returns a validated instance of `schema_model`. Retries on transient
+    connection errors / overload with exponential backoff.
+    """
+    system_blocks = _build_system_blocks_for_caching()
+    tool_def = {
+        "name": schema_model.__name__,
+        "description": f"Emit a {schema_model.__name__} matching the provided schema.",
+        "input_schema": schema_model.model_json_schema(),
+    }
+
+    last_err: Exception | None = None
+    backoff = [0, 10, 30, 60]
+    for attempt in range(max_retries):
+        if attempt > 0:
+            wait = backoff[min(attempt, len(backoff) - 1)]
+            print(f"[anthropic] {label}: backing off {wait}s before retry {attempt + 1}...")
+            time.sleep(wait)
+        try:
+            response = _raw_anthropic_client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                timeout=timeout,
+                system=system_blocks,
+                messages=[{"role": "user", "content": user_prompt}],
+                tools=[tool_def],
+                tool_choice={"type": "tool", "name": schema_model.__name__},
+            )
+            # Log cache usage for observability
+            usage = response.usage
+            cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
+            cache_write = getattr(usage, "cache_creation_input_tokens", 0) or 0
+            print(f"[anthropic] {label}: input={usage.input_tokens} "
+                  f"cache_read={cache_read} cache_write={cache_write} "
+                  f"output={usage.output_tokens}")
+
+            # Extract tool_use block
+            for block in response.content:
+                if block.type == "tool_use" and block.name == schema_model.__name__:
+                    return schema_model.model_validate(block.input)
+            raise RuntimeError(
+                f"No {schema_model.__name__} tool_use in response. "
+                f"Got blocks: {[b.type for b in response.content]}"
+            )
+        except Exception as e:
+            last_err = e
+            if attempt < max_retries - 1:
+                print(f"[anthropic] {label}: {type(e).__name__} on attempt "
+                      f"{attempt + 1} — will retry...")
+    raise last_err
+
+
+# =====================================================================
+# Per-crop generation schemas + nodes
+#
+# Replaces the single big crop_selection LLM call with:
+#   1. crop_intent      — tiny call returning list of (name, role, variety_hint)
+#   2. crop_detail × N   — one LLM call per crop, full CropInPlan, parallel
+#   3. crop_aggregate    — deterministic merge into CropSelectionSection
+# =====================================================================
+
+class CropIntentItem(BaseModel):
+    """One crop the advisor plans to include — name + role + variety hint."""
+    crop_name: str = Field(description="Common crop name, e.g. 'Thailand Lemon', 'Bt Cotton', 'Ragi'.")
+    variety_hint: str | None = Field(default=None,
+        description="Variety / cultivar hint, e.g. 'NHH 44', 'PKM-1', 'Fuerte'. "
+                    "Leave None if undecided.")
+    role: Literal["short_term_cash_crop", "medium_term_crop",
+                  "perennial_anchor", "intercrop", "boundary_crop"]
+    acres_allocated: float = Field(description="Acres allocated to this crop.")
+    rationale_for_inclusion: str = Field(description="One sentence: why this crop.")
+
+
+class CropIntentSection(BaseModel):
+    """Output of crop_intent node — just the LIST of crops to detail."""
+    crops_planned: list[CropIntentItem] = Field(
+        description="3-6 crops to include in the plan, balancing time horizons. "
+                    "Each gets fully detailed in the next stage."
+    )
+
+
 class PlanGraphState(TypedDict, total=False):
     """State threading through the per-option planning graph."""
     profile: FarmProfile
@@ -755,7 +883,9 @@ class PlanGraphState(TypedDict, total=False):
     risk_profile: str        # "conservative" | "balanced" | "aggressive"
     # LLM-call outputs — 3 small core sections (replaces single CorePlanSection)
     profile_synthesis: ProfileSynthesisSection
-    crop_selection: CropSelectionSection
+    crop_intent: CropIntentSection                              # NEW — tiny call: list of crops
+    crop_details: _Annotated[list[CropInPlan], operator.add]    # NEW — accumulated parallel results
+    crop_selection: CropSelectionSection                        # aggregated from crop_details
     livestock_apiary: LivestockApiarySection
     # Legacy combined section (for backwards compat)
     core: CorePlanSection
@@ -792,62 +922,175 @@ def _risk_profile_instruction(risk_profile: str) -> str:
 # ---------- LangGraph nodes ----------
 
 def _node_profile_synthesis(state: PlanGraphState) -> dict:
-    """First node: synthesize the profile + state the strategy. Small + fast."""
+    """First node: synthesize the profile + state the strategy. Small + fast.
+
+    Uses native Anthropic SDK with cache_control on the KB system prompt.
+    First call of a plan writes the cache; all subsequent nodes read it cheaply.
+    """
     profile = state["profile"]
     goals = state["goals"]
     risk_profile = state.get("risk_profile", goals.risk_profile)
 
-    model = _make_planner_model(timeout=180)  # smaller call; tighter timeout
-    planner = model.with_structured_output(ProfileSynthesisSection)
     prompt = (
         f"{_risk_profile_instruction(risk_profile)}\n\n"
         f"FARM PROFILE:\n{profile.model_dump_json(indent=2)}\n\n"
         f"PLANNING GOALS:\n{goals.model_dump_json(indent=2)}\n\n"
         "Generate ONLY the ProfileSynthesisSection: a one-paragraph plan_summary "
         "(what you're going to recommend overall), a one-paragraph farmer_profile_inferred "
-        "(synthesis of the situation), and risk_diversification_strategy (how the crop+livestock+apiary "
-        "mix will hedge risk). Do NOT generate the crop list, livestock, or cash flow yet — those "
-        "come later. Keep this section concise."
+        "(synthesis of the situation), and risk_diversification_strategy. Keep this section concise."
     )
-    result = _call_with_retry(planner, _build_system_prompt(), prompt,
-                              label=f"{risk_profile}:profile_synth")
+    result = _call_anthropic_structured(
+        ProfileSynthesisSection, prompt,
+        label=f"{risk_profile}:profile_synth",
+        max_tokens=2048, timeout=120,
+    )
     return {"profile_synthesis": result}
 
 
-def _node_crop_selection(state: PlanGraphState) -> dict:
-    """Generate the crop list — the largest output of the pipeline. Isolated for reliability."""
+def _node_crop_intent(state: PlanGraphState) -> dict:
+    """Tiny LLM call that just NAMES the crops to include (3-6 of them) plus
+    variety hint + role + acres. The expensive full detail per crop happens
+    in parallel `crop_detail` nodes that run after this."""
     profile = state["profile"]
     goals = state["goals"]
     synth = state["profile_synthesis"]
     risk_profile = state.get("risk_profile", goals.risk_profile)
 
-    model = _make_planner_model(timeout=300)
-    planner = model.with_structured_output(CropSelectionSection)
     prompt = (
         f"{_risk_profile_instruction(risk_profile)}\n\n"
         f"FARM PROFILE:\n{profile.model_dump_json(indent=2)}\n\n"
         f"PLANNING GOALS:\n{goals.model_dump_json(indent=2)}\n\n"
-        f"PROFILE SYNTHESIS (you already wrote this; align crop picks with it):\n"
-        f"{synth.model_dump_json(indent=2)}\n\n"
-        "Generate ONLY the CropSelectionSection: 3-6 crops with FULL variety-level detail "
-        "(crop_name, variety, role, acres_allocated, time_to_first_yield_years, etc. — all CropInPlan fields). "
-        "Balance short-term cash crops / medium-term / perennials / boundary. Match to climate / soil / "
-        "wildlife / labor / investment. Use the knowledge base for varieties, suppliers, subsidies. "
-        "If goals.interested_exotic_crops is non-empty, consider those varieties seriously."
+        f"PROFILE SYNTHESIS:\n{synth.model_dump_json(indent=2)}\n\n"
+        "Generate the CropIntentSection — JUST the list of crops you plan to include "
+        "in the final plan (3-6 crops). For each crop give: crop_name, variety_hint "
+        "(specific cultivar like 'NHH 44' or 'Thailand Lemon'), role "
+        "(short_term_cash_crop / medium_term_crop / perennial_anchor / intercrop / boundary_crop), "
+        "acres_allocated (must sum to <= profile.total_acres), and a one-sentence "
+        "rationale_for_inclusion.\n\n"
+        "Match crops to climate / soil / wildlife / labor / investment. "
+        "If goals.interested_exotic_crops is non-empty, consider those seriously. "
+        "Do NOT generate full crop details yet — just the list."
     )
-    result = _call_with_retry(planner, _build_system_prompt(), prompt,
-                              label=f"{risk_profile}:crop_selection")
-    return {"crop_selection": result}
+    result = _call_anthropic_structured(
+        CropIntentSection, prompt,
+        label=f"{risk_profile}:crop_intent",
+        max_tokens=2048, timeout=120,
+    )
+    return {"crop_intent": result}
 
 
-def _node_livestock_apiary(state: PlanGraphState) -> dict:
-    """Livestock + apiary only — small, fast, parallelizable with crop_selection."""
+def _fan_out_crops(state: PlanGraphState):
+    """Conditional edge: emits one Send per crop intent to the crop_detail node.
+    LangGraph runs all of them in parallel; their outputs aggregate into
+    state['crop_details'] via the operator.add reducer."""
+    intent = state["crop_intent"]
+    profile = state["profile"]
+    goals = state["goals"]
+    synth = state["profile_synthesis"]
+    risk_profile = state.get("risk_profile", goals.risk_profile)
+    return [
+        Send("crop_detail", {
+            "crop_intent_item": ci,
+            "profile": profile,
+            "goals": goals,
+            "profile_synthesis": synth,
+            "risk_profile": risk_profile,
+        })
+        for ci in intent.crops_planned
+    ]
+
+
+def _node_crop_detail(state: dict) -> dict:
+    """Generate ONE CropInPlan in detail. Called once per CropIntentItem in parallel.
+
+    `state` here is the partial state passed via Send — not the full PlanGraphState.
+    Returns {"crop_details": [one_crop]} which is aggregated via operator.add.
+    """
+    ci: CropIntentItem = state["crop_intent_item"]
     profile = state["profile"]
     goals = state["goals"]
     synth = state["profile_synthesis"]
     risk_profile = state.get("risk_profile", goals.risk_profile)
 
-    # Skip the LLM call entirely if goals don't request livestock + apiary
+    prompt = (
+        f"{_risk_profile_instruction(risk_profile)}\n\n"
+        f"FARM PROFILE (relevant fields):\n"
+        f"  district: {profile.district}\n"
+        f"  total_acres: {profile.total_acres}\n"
+        f"  soil_types: {profile.soil_types_present}\n"
+        f"  water_sources: {profile.water_sources}\n"
+        f"  irrigation: {profile.irrigation_infrastructure}\n"
+        f"  wildlife: {profile.wildlife_present}\n"
+        f"  forest_proximity_km: {profile.forest_proximity_km}\n"
+        f"  organic_interest: {profile.organic_interest}\n\n"
+        f"PLAN SUMMARY:\n{synth.plan_summary}\n\n"
+        f"CROP TO DETAIL:\n"
+        f"  crop_name: {ci.crop_name}\n"
+        f"  variety_hint: {ci.variety_hint}\n"
+        f"  role: {ci.role}\n"
+        f"  acres_allocated: {ci.acres_allocated}\n"
+        f"  rationale: {ci.rationale_for_inclusion}\n\n"
+        f"Generate a COMPLETE CropInPlan for THIS ONE CROP. Fill EVERY field with "
+        f"variety-level specificity:\n"
+        f"  - crop_name + variety (commit to the variety_hint if good; refine if better cultivar exists)\n"
+        f"  - role (use the role above), acres_allocated (use the acres above)\n"
+        f"  - time_to_first_yield_years, peak_production_year_start/end, breakeven_year\n"
+        f"  - expected_yield_per_acre, revenue_per_acre_at_peak_inr, year_1_investment_inr, "
+        f"annual_maintenance_inr\n"
+        f"  - climate_concerns, soil_requirements, disease_risks, pest_risks (concrete, not generic)\n"
+        f"  - market_channels (Suryapet local / Warangal / Hyderabad Monda / Miryalaguda etc.)\n"
+        f"  - seasonal_price_windows (peak / glut months)\n"
+        f"  - govt_subsidies_available (MIDH / Rythu Bandhu / PMFBY / specific scheme codes)\n"
+        f"  - suppliers_known (SKLTSHU / Deccan Exotics / Ankur Seeds / specific orgs)\n"
+        f"  - risk_flags, why_it_fits, pairs_well_with\n"
+        f"  - organic_compatible, pollinator_friendly, is_exotic_high_value, export_potential\n"
+        f"  - value_addition_options\n"
+        f"  - confidence_self + confidence_meta (0-1)\n\n"
+        f"Use the KB for variety, supplier, scheme references. Be specific."
+    )
+    result = _call_anthropic_structured(
+        CropInPlan, prompt,
+        label=f"{risk_profile}:crop_detail:{ci.crop_name[:20]}",
+        max_tokens=3072, timeout=180,
+    )
+    return {"crop_details": [result]}
+
+
+def _node_crop_aggregate(state: PlanGraphState) -> dict:
+    """Deterministic: collect the parallel crop_details into a CropSelectionSection."""
+    details: list[CropInPlan] = state.get("crop_details", [])
+    return {"crop_selection": CropSelectionSection(crops=details)}
+
+
+def _node_crop_selection(state: PlanGraphState) -> dict:
+    """Legacy single-call crop generation — kept for the legacy build path."""
+    profile = state["profile"]
+    goals = state["goals"]
+    synth = state["profile_synthesis"]
+    risk_profile = state.get("risk_profile", goals.risk_profile)
+
+    prompt = (
+        f"{_risk_profile_instruction(risk_profile)}\n\n"
+        f"FARM PROFILE:\n{profile.model_dump_json(indent=2)}\n\n"
+        f"PLANNING GOALS:\n{goals.model_dump_json(indent=2)}\n\n"
+        f"PROFILE SYNTHESIS:\n{synth.model_dump_json(indent=2)}\n\n"
+        "Generate the CropSelectionSection: 3-6 crops with FULL variety-level detail."
+    )
+    result = _call_anthropic_structured(
+        CropSelectionSection, prompt,
+        label=f"{risk_profile}:crop_selection_legacy",
+        max_tokens=8192, timeout=300,
+    )
+    return {"crop_selection": result}
+
+
+def _node_livestock_apiary(state: PlanGraphState) -> dict:
+    """Livestock + apiary only. Native SDK + cache. Skipped if goals don't request any."""
+    profile = state["profile"]
+    goals = state["goals"]
+    synth = state["profile_synthesis"]
+    risk_profile = state.get("risk_profile", goals.risk_profile)
+
     wants_dairy = goals.include_dairy
     wants_apiary = goals.include_apiary
     wants_poultry = goals.include_poultry
@@ -855,27 +1098,27 @@ def _node_livestock_apiary(state: PlanGraphState) -> dict:
     if not any([wants_dairy, wants_apiary, wants_poultry, wants_fish]):
         return {"livestock_apiary": LivestockApiarySection(livestock=[], apiary=None)}
 
-    model = _make_planner_model(timeout=180)
-    planner = model.with_structured_output(LivestockApiarySection)
     request_lines = []
-    if wants_dairy: request_lines.append("- DAIRY: recommend breed + count (Sahiwal/Gir/Murrah etc.)")
-    if wants_apiary: request_lines.append("- APIARY: recommend bee species + box count + placement near flowering crops")
-    if wants_poultry: request_lines.append("- POULTRY: recommend type + count (Aseel/Kadaknath/layer/broiler)")
-    if wants_fish: request_lines.append("- FISH: recommend species + pond setup if water is available")
+    if wants_dairy: request_lines.append("- DAIRY: breed + count (Sahiwal/Gir/Murrah).")
+    if wants_apiary: request_lines.append("- APIARY: bee species + box count + placement.")
+    if wants_poultry: request_lines.append("- POULTRY: type + count.")
+    if wants_fish: request_lines.append("- FISH: species + pond setup.")
 
     prompt = (
         f"{_risk_profile_instruction(risk_profile)}\n\n"
         f"FARM PROFILE:\n{profile.model_dump_json(indent=2)}\n\n"
         f"PLANNING GOALS:\n{goals.model_dump_json(indent=2)}\n\n"
         f"PROFILE SYNTHESIS:\n{synth.model_dump_json(indent=2)}\n\n"
-        "Generate ONLY the LivestockApiarySection. Goals request:\n"
+        "Generate the LivestockApiarySection. Goals request:\n"
         + "\n".join(request_lines) + "\n\n"
-        "Match indigenous + heat-tolerant breeds (Sahiwal, Gir, Murrah). For apiary, "
-        "place hives within 100-200m of flowering crops in the plan. Include monthly net "
-        "revenue ranges + integration_with_crops + applicable govt schemes (NLM, MIDH)."
+        "Use indigenous + heat-tolerant breeds. For apiary, place hives within 100-200m "
+        "of flowering crops. Include monthly net + integration_with_crops + govt schemes (NLM, MIDH)."
     )
-    result = _call_with_retry(planner, _build_system_prompt(), prompt,
-                              label=f"{risk_profile}:livestock_apiary")
+    result = _call_anthropic_structured(
+        LivestockApiarySection, prompt,
+        label=f"{risk_profile}:livestock_apiary",
+        max_tokens=2048, timeout=120,
+    )
     return {"livestock_apiary": result}
 
 
@@ -901,12 +1144,11 @@ def _node_core(state: PlanGraphState) -> dict:
 
 
 def _node_sustainability(state: PlanGraphState) -> dict:
-    """Runs after crops + livestock are decided. Recommends practices that fit the mix."""
+    """Sustainability + logistics. Native SDK + cache."""
     profile = state["profile"]
     goals = state["goals"]
     risk_profile = state.get("risk_profile", goals.risk_profile)
 
-    # Build a compact "core" context from the new split sections (or fall back to legacy)
     if "profile_synthesis" in state and "crop_selection" in state:
         synth = state["profile_synthesis"]
         crops = state["crop_selection"]
@@ -920,19 +1162,20 @@ def _node_sustainability(state: PlanGraphState) -> dict:
     else:
         core_ctx = state["core"].model_dump_json(indent=2)
 
-    model = _make_planner_model(timeout=240)
-    planner = model.with_structured_output(SustainabilitySection)
     prompt = (
         f"{_risk_profile_instruction(risk_profile)}\n\n"
         f"FARM PROFILE:\n{profile.model_dump_json(indent=2)}\n\n"
         f"PLANNING GOALS:\n{goals.model_dump_json(indent=2)}\n\n"
         f"CORE PLAN ALREADY DECIDED:\n{core_ctx}\n\n"
-        "Generate SUSTAINABILITY + LOGISTICS: 3-6 sustainability_practices (ZBNF, drip, "
-        "biogas, agroforestry, etc.), organic_transition_path (if applicable), "
-        "govt_subsidies_to_pursue, suppliers_to_contact, market_channels_to_develop."
+        "Generate SUSTAINABILITY + LOGISTICS: 3-6 sustainability_practices, "
+        "organic_transition_path (if applicable), govt_subsidies_to_pursue, "
+        "suppliers_to_contact, market_channels_to_develop."
     )
-    result = _call_with_retry(planner, _build_system_prompt(), prompt,
-                              label=f"{risk_profile}:sustainability")
+    result = _call_anthropic_structured(
+        SustainabilitySection, prompt,
+        label=f"{risk_profile}:sustainability",
+        max_tokens=3072, timeout=180,
+    )
     return {"sustainability": result}
 
 
@@ -967,8 +1210,6 @@ def _node_cashflow(state: PlanGraphState) -> dict:
     else:
         core_ctx = state["core"].model_dump_json(indent=2)
 
-    model = _make_planner_model(timeout=240)
-    planner = model.with_structured_output(CashFlowSection)
     prompt = (
         f"{_risk_profile_instruction(risk_profile)}\n\n"
         f"FARM PROFILE:\n{profile.model_dump_json(indent=2)}\n\n"
@@ -977,11 +1218,13 @@ def _node_cashflow(state: PlanGraphState) -> dict:
         f"SUSTAINABILITY:\n{sust.model_dump_json(indent=2)}\n\n"
         f"Generate CASH FLOW + ACTIONS for the {horizon}-year horizon. "
         f"year_by_year_cash_flow MUST have entries Y1..Y{horizon} reflecting perennial "
-        "breakeven timelines (lemon Y4, avocado Y5, dragon fruit Y2-3). "
-        "immediate_next_steps (3-6 30-day actions), pilot_recommendation, disclaimers."
+        "breakeven timelines. immediate_next_steps (3-6 30-day actions), pilot_recommendation, disclaimers."
     )
-    result = _call_with_retry(planner, _build_system_prompt(), prompt,
-                              label=f"{risk_profile}:cashflow")
+    result = _call_anthropic_structured(
+        CashFlowSection, prompt,
+        label=f"{risk_profile}:cashflow",
+        max_tokens=3072, timeout=180,
+    )
     return {"cashflow": result}
 
 
@@ -1037,73 +1280,84 @@ def _node_assemble(state: PlanGraphState) -> dict:
 
 
 def _node_critique(state: PlanGraphState) -> dict:
-    """Devil's advocate — honest critique of the just-assembled plan."""
+    """Devil's advocate — honest critique of the just-assembled plan. Native SDK + cache."""
     profile = state["profile"]
     goals = state["goals"]
     plan = state["plan"]
     risk_profile = state.get("risk_profile", goals.risk_profile)
 
-    model = _make_planner_model()
-    planner = model.with_structured_output(PlanCritique)
     prompt = (
         f"You are playing DEVIL'S ADVOCATE. The following farm plan was generated for "
         f"a {risk_profile} risk profile. Your job is to find honest failure modes — "
-        f"NOT to validate the plan. Be specific to THIS farmer's context (climate, "
-        f"soil, wildlife, labor, market access), NOT generic 'farming is risky' advice.\n\n"
+        f"NOT to validate the plan. Be specific to THIS farmer's context.\n\n"
         f"FARMER PROFILE:\n{profile.model_dump_json(indent=2)}\n\n"
         f"PLAN:\n{plan.model_dump_json(indent=2)}\n\n"
-        f"Generate PlanCritique. Be specific. Be honest. Over-confidence is the failure "
-        f"mode — calibrate overall_confidence to reflect real-world delivery risk over "
-        f"the {goals.planning_horizon_years}-year horizon."
+        f"Generate PlanCritique. Be honest. Over-confidence is the failure mode — "
+        f"calibrate overall_confidence to reflect real-world delivery risk over the "
+        f"{goals.planning_horizon_years}-year horizon."
     )
-    result = _call_with_retry(planner, _build_system_prompt(), prompt,
-                              label=f"{risk_profile}:critique")
+    result = _call_anthropic_structured(
+        PlanCritique, prompt,
+        label=f"{risk_profile}:critique",
+        max_tokens=2048, timeout=120,
+    )
     return {"critique": result}
 
 
 def build_planner_graph(checkpointer=None):
-    """Build the per-option planning StateGraph.
-
-    Shape (7 nodes, with crops + livestock running in parallel):
+    """Per-option planning StateGraph with per-crop parallel detailing.
 
         START
           ↓
-        profile_synthesis              (small, fast)
-          ├──→ crop_selection          (medium, the big LLM output) ─┐
-          └──→ livestock_apiary        (small, skipped if not requested) ─┤
-                                                                          ↓
-                                                                  sustainability
-                                                                          ↓
-                                                                       cashflow
-                                                                          ↓
-                                                                       assemble (no LLM)
-                                                                          ↓
-                                                                       critique
-                                                                          ↓
-                                                                         END
+        profile_synthesis                                (small, ~30s — writes KB cache)
+          ├──→ crop_intent (small, ~30s — lists crops)
+          │      ↓ fan out via Send
+          │    crop_detail × N (parallel, ~30-45s each — full CropInPlan per crop)
+          │      ↓ join
+          │    crop_aggregate (deterministic merge)
+          │      ↓
+          │    +─────────────────────────────────────┐
+          │                                          │
+          └──→ livestock_apiary                      │
+                  (small / skipped, parallel)       │
+                                          ↓ ←───────┘
+                                  sustainability
+                                          ↓
+                                       cashflow
+                                          ↓
+                                       assemble (deterministic)
+                                          ↓
+                                       critique
+                                          ↓
+                                         END
 
-    sustainability waits for BOTH crop_selection AND livestock_apiary (LangGraph
-    default join behavior on multiple incoming edges).
+    Native Anthropic SDK + cache_control on the KB system prompt means
+    calls 2-N read the cache at ~10% input cost (Session 4 + 15 patterns).
     """
     if not _LANGGRAPH_AVAILABLE:
         raise RuntimeError("langgraph not installed — `pip install langgraph`")
 
     g = StateGraph(PlanGraphState)
     g.add_node("profile_synthesis", _node_profile_synthesis)
-    g.add_node("crop_selection", _node_crop_selection)
+    g.add_node("crop_intent", _node_crop_intent)
+    g.add_node("crop_detail", _node_crop_detail)
+    g.add_node("crop_aggregate", _node_crop_aggregate)
     g.add_node("livestock_apiary", _node_livestock_apiary)
     g.add_node("sustainability", _node_sustainability)
     g.add_node("cashflow", _node_cashflow)
     g.add_node("assemble", _node_assemble)
     g.add_node("critique", _node_critique)
 
-    # Entry → profile synthesis
+    # Entry
     g.add_edge(START, "profile_synthesis")
-    # Fan out to crops + livestock in parallel
-    g.add_edge("profile_synthesis", "crop_selection")
+    # Fan out to two parallel branches
+    g.add_edge("profile_synthesis", "crop_intent")
     g.add_edge("profile_synthesis", "livestock_apiary")
-    # Join into sustainability
-    g.add_edge("crop_selection", "sustainability")
+    # Crop intent → fan-out via Send → crop_detail (parallel) → crop_aggregate
+    g.add_conditional_edges("crop_intent", _fan_out_crops, ["crop_detail"])
+    g.add_edge("crop_detail", "crop_aggregate")
+    # Join into sustainability (waits for BOTH crop_aggregate AND livestock_apiary)
+    g.add_edge("crop_aggregate", "sustainability")
     g.add_edge("livestock_apiary", "sustainability")
     # Sequential tail
     g.add_edge("sustainability", "cashflow")

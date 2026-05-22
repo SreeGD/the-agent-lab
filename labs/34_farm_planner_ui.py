@@ -394,17 +394,20 @@ def page_generate():
         if st.button("Generate plan", type="primary"):
             g.risk_profile = risk_profile
             status = st.status(
-                f"Generating {risk_profile} plan (7 nodes, 6 LLM calls)...",
+                f"Generating {risk_profile} plan (native SDK + cache; "
+                "parallel per-crop generation)...",
                 expanded=True,
             )
             try:
                 # Friendly labels per node — UI sees these as they complete
                 node_labels = {
-                    "profile_synthesis": "📝 Profile synthesis + strategy",
-                    "crop_selection":    "🌾 Crop selection (the big one)",
+                    "profile_synthesis": "📝 Profile synthesis + strategy (writes KB cache)",
+                    "crop_intent":       "🎯 Picking crops (just names + roles)",
+                    "crop_detail":       "🌾 Generating crop detail (parallel)",
+                    "crop_aggregate":    "📋 Aggregating crops",
                     "livestock_apiary":  "🐄 Livestock + apiary",
                     "sustainability":    "🌱 Sustainability practices + subsidies",
-                    "cashflow":          "💰 10-year cash flow + next steps",
+                    "cashflow":          "💰 Cash flow + next steps",
                     "assemble":          "🧩 Assembling plan (deterministic)",
                     "critique":          "🎯 Devil's advocate critique",
                 }
