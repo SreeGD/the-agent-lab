@@ -401,14 +401,13 @@ def page_generate():
             try:
                 # Friendly labels per node — UI sees these as they complete
                 node_labels = {
-                    "profile_synthesis": "📝 Profile synthesis + strategy (writes KB cache)",
-                    "crop_intent":       "🎯 Picking crops (just names + roles)",
-                    "crop_detail":       "🌾 Generating crop detail (parallel)",
-                    "crop_aggregate":    "📋 Aggregating crops",
+                    "profile_synthesis": "📝 Profile synthesis + strategy",
+                    "crop_intent":       "🎯 Picking crops (names + roles)",
+                    "crops_parallel":    "🌾 Crop details (parallel thread pool)",
                     "livestock_apiary":  "🐄 Livestock + apiary",
-                    "sustainability":    "🌱 Sustainability practices + subsidies",
+                    "sustainability":    "🌱 Sustainability + subsidies",
                     "cashflow":          "💰 Cash flow + next steps",
-                    "assemble":          "🧩 Assembling plan (deterministic)",
+                    "assemble":          "🧩 Assembling plan",
                     "critique":          "🎯 Devil's advocate critique",
                 }
                 plan: engine.FarmPlan | None = None

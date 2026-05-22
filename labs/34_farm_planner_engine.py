@@ -979,39 +979,12 @@ def _node_crop_intent(state: PlanGraphState) -> dict:
     return {"crop_intent": result}
 
 
-def _fan_out_crops(state: PlanGraphState):
-    """Conditional edge: emits one Send per crop intent to the crop_detail node.
-    LangGraph runs all of them in parallel; their outputs aggregate into
-    state['crop_details'] via the operator.add reducer."""
-    intent = state["crop_intent"]
-    profile = state["profile"]
-    goals = state["goals"]
-    synth = state["profile_synthesis"]
-    risk_profile = state.get("risk_profile", goals.risk_profile)
-    return [
-        Send("crop_detail", {
-            "crop_intent_item": ci,
-            "profile": profile,
-            "goals": goals,
-            "profile_synthesis": synth,
-            "risk_profile": risk_profile,
-        })
-        for ci in intent.crops_planned
-    ]
-
-
-def _node_crop_detail(state: dict) -> dict:
-    """Generate ONE CropInPlan in detail. Called once per CropIntentItem in parallel.
-
-    `state` here is the partial state passed via Send — not the full PlanGraphState.
-    Returns {"crop_details": [one_crop]} which is aggregated via operator.add.
-    """
-    ci: CropIntentItem = state["crop_intent_item"]
-    profile = state["profile"]
-    goals = state["goals"]
-    synth = state["profile_synthesis"]
-    risk_profile = state.get("risk_profile", goals.risk_profile)
-
+def _generate_one_crop_detail(ci: CropIntentItem, profile: FarmProfile,
+                              goals: PlanningGoals,
+                              synth: ProfileSynthesisSection,
+                              risk_profile: str) -> CropInPlan:
+    """Generate ONE CropInPlan in detail. Called from `_node_crops_parallel` once
+    per CropIntentItem, in parallel via a thread pool. Returns a single CropInPlan."""
     prompt = (
         f"{_risk_profile_instruction(risk_profile)}\n\n"
         f"FARM PROFILE (relevant fields):\n"
@@ -1031,35 +1004,60 @@ def _node_crop_detail(state: dict) -> dict:
         f"  acres_allocated: {ci.acres_allocated}\n"
         f"  rationale: {ci.rationale_for_inclusion}\n\n"
         f"Generate a COMPLETE CropInPlan for THIS ONE CROP. Fill EVERY field with "
-        f"variety-level specificity:\n"
-        f"  - crop_name + variety (commit to the variety_hint if good; refine if better cultivar exists)\n"
-        f"  - role (use the role above), acres_allocated (use the acres above)\n"
-        f"  - time_to_first_yield_years, peak_production_year_start/end, breakeven_year\n"
-        f"  - expected_yield_per_acre, revenue_per_acre_at_peak_inr, year_1_investment_inr, "
-        f"annual_maintenance_inr\n"
-        f"  - climate_concerns, soil_requirements, disease_risks, pest_risks (concrete, not generic)\n"
-        f"  - market_channels (Suryapet local / Warangal / Hyderabad Monda / Miryalaguda etc.)\n"
-        f"  - seasonal_price_windows (peak / glut months)\n"
-        f"  - govt_subsidies_available (MIDH / Rythu Bandhu / PMFBY / specific scheme codes)\n"
-        f"  - suppliers_known (SKLTSHU / Deccan Exotics / Ankur Seeds / specific orgs)\n"
-        f"  - risk_flags, why_it_fits, pairs_well_with\n"
-        f"  - organic_compatible, pollinator_friendly, is_exotic_high_value, export_potential\n"
-        f"  - value_addition_options\n"
-        f"  - confidence_self + confidence_meta (0-1)\n\n"
-        f"Use the KB for variety, supplier, scheme references. Be specific."
+        f"variety-level specificity (crop_name, variety, role, acres_allocated, "
+        f"time_to_first_yield_years, peak_production_year_start/end, breakeven_year, "
+        f"expected_yield_per_acre, revenue_per_acre_at_peak_inr, year_1_investment_inr, "
+        f"annual_maintenance_inr, climate_concerns, soil_requirements, disease_risks, "
+        f"pest_risks, market_channels, seasonal_price_windows, govt_subsidies_available, "
+        f"suppliers_known, risk_flags, why_it_fits, pairs_well_with, organic_compatible, "
+        f"pollinator_friendly, is_exotic_high_value, export_potential, value_addition_options, "
+        f"confidence_self, confidence_meta). Use the KB for variety, supplier, scheme references."
     )
-    result = _call_anthropic_structured(
+    return _call_anthropic_structured(
         CropInPlan, prompt,
         label=f"{risk_profile}:crop_detail:{ci.crop_name[:20]}",
         max_tokens=3072, timeout=180,
     )
-    return {"crop_details": [result]}
 
 
-def _node_crop_aggregate(state: PlanGraphState) -> dict:
-    """Deterministic: collect the parallel crop_details into a CropSelectionSection."""
-    details: list[CropInPlan] = state.get("crop_details", [])
-    return {"crop_selection": CropSelectionSection(crops=details)}
+def _node_crops_parallel(state: PlanGraphState) -> dict:
+    """Run all crop_detail calls in PARALLEL via a thread pool — one LangGraph
+    node, internally concurrent. Avoids the Send + conditional-edges + join
+    complexity that bit us before (sustainability ran without waiting for
+    aggregate, KeyError on legacy 'core' state).
+
+    Result: same parallel speedup, simpler graph.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    profile = state["profile"]
+    goals = state["goals"]
+    synth = state["profile_synthesis"]
+    intent = state["crop_intent"]
+    risk_profile = state.get("risk_profile", goals.risk_profile)
+
+    if not intent.crops_planned:
+        return {"crop_selection": CropSelectionSection(crops=[])}
+
+    max_workers = min(len(intent.crops_planned), 6)
+    print(f"[engine] crops_parallel: {len(intent.crops_planned)} crops in pool of {max_workers}")
+    crops: list[CropInPlan] = []
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {
+            pool.submit(_generate_one_crop_detail, ci, profile, goals, synth, risk_profile): ci
+            for ci in intent.crops_planned
+        }
+        for future in as_completed(futures):
+            ci = futures[future]
+            try:
+                crop = future.result()
+                crops.append(crop)
+                print(f"[engine] crops_parallel: ✓ {ci.crop_name}")
+            except Exception as e:
+                print(f"[engine] crops_parallel: ✗ {ci.crop_name} — {type(e).__name__}: {e}")
+                # If a crop fails, continue with the others — don't fail the whole plan
+
+    return {"crop_selection": CropSelectionSection(crops=crops)}
 
 
 def _node_crop_selection(state: PlanGraphState) -> dict:
@@ -1340,8 +1338,7 @@ def build_planner_graph(checkpointer=None):
     g = StateGraph(PlanGraphState)
     g.add_node("profile_synthesis", _node_profile_synthesis)
     g.add_node("crop_intent", _node_crop_intent)
-    g.add_node("crop_detail", _node_crop_detail)
-    g.add_node("crop_aggregate", _node_crop_aggregate)
+    g.add_node("crops_parallel", _node_crops_parallel)   # threading internally
     g.add_node("livestock_apiary", _node_livestock_apiary)
     g.add_node("sustainability", _node_sustainability)
     g.add_node("cashflow", _node_cashflow)
@@ -1350,14 +1347,13 @@ def build_planner_graph(checkpointer=None):
 
     # Entry
     g.add_edge(START, "profile_synthesis")
-    # Fan out to two parallel branches
+    # Fan out to two parallel-ish branches at the graph level
     g.add_edge("profile_synthesis", "crop_intent")
     g.add_edge("profile_synthesis", "livestock_apiary")
-    # Crop intent → fan-out via Send → crop_detail (parallel) → crop_aggregate
-    g.add_conditional_edges("crop_intent", _fan_out_crops, ["crop_detail"])
-    g.add_edge("crop_detail", "crop_aggregate")
-    # Join into sustainability (waits for BOTH crop_aggregate AND livestock_apiary)
-    g.add_edge("crop_aggregate", "sustainability")
+    # Crop intent → crops_parallel (single edge; threading inside the node)
+    g.add_edge("crop_intent", "crops_parallel")
+    # Join into sustainability — waits for BOTH crops_parallel AND livestock_apiary
+    g.add_edge("crops_parallel", "sustainability")
     g.add_edge("livestock_apiary", "sustainability")
     # Sequential tail
     g.add_edge("sustainability", "cashflow")
