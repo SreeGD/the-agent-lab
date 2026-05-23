@@ -339,7 +339,7 @@ if __name__ == "__main__":
     print(
         "  • 5 questions × 3 RAG variants × 4 metrics = 60 LLM-as-judge calls\n"
         "    (plus the 15 RAG generations and the CRAG grading calls). Total\n"
-        "    ~120 calls, ~$0.30-0.50 with claude-sonnet-4-6.\n"
+        "    ~120 calls, ~$0.50-0.90 with gpt-4o.\n"
         "  • Each metric is a single LLM call returning a structured score\n"
         "    in [0,1]. The Pydantic `Field(ge=0.0, le=1.0)` enforces the range\n"
         "    at the API boundary — no post-hoc clamping needed.\n"

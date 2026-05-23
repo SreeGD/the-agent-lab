@@ -91,8 +91,8 @@ class Metrics:
             self.output_tokens += ai.usage_metadata.get("output_tokens", 0)
 
     def cost_usd(self) -> float:
-        # Sonnet 4.6: $3 / 1M input, $15 / 1M output
-        return (self.input_tokens * 3 + self.output_tokens * 15) / 1_000_000
+        # gpt-4o approximate pricing per 1M tokens
+        return (self.input_tokens * 2.5 + self.output_tokens * 10) / 1_000_000
 
 
 # =====================================================================
