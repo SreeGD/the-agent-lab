@@ -24,7 +24,7 @@ def get_current_time() -> str:
 def print_usage(messages):
     """Print per-call and total token usage for every AIMessage in `messages`."""
     print("\n=== token usage ===")
-    total_in = total_out = total_cache_read = total_cache_create = 0
+    total_in = total_out = total_cache_read = 0
     call = 0
     for m in messages:
         if not isinstance(m, AIMessage) or not m.usage_metadata:
@@ -35,19 +35,17 @@ def print_usage(messages):
         out_tok = u.get("output_tokens", 0)
         details = u.get("input_token_details", {}) or {}
         cache_read = details.get("cache_read", 0)
-        cache_create = details.get("cache_creation", 0)
         total_in += in_tok
         total_out += out_tok
         total_cache_read += cache_read
-        total_cache_create += cache_create
         line = f"call {call}: {in_tok:>5} in + {out_tok:>4} out = {in_tok + out_tok:>5} total"
-        if cache_read or cache_create:
-            line += f"   (cache read={cache_read}, create={cache_create})"
+        if cache_read:
+            line += f"   (cache read={cache_read})"
         print(line)
     print(f"{'-' * 48}")
     print(f"total:  {total_in:>5} in + {total_out:>4} out = {total_in + total_out:>5} total")
-    if total_cache_read or total_cache_create:
-        print(f"        cache read={total_cache_read}, create={total_cache_create}")
+    if total_cache_read:
+        print(f"        cache read={total_cache_read}")
 
 
 # Pass the plain model — create_react_agent calls .bind_tools() internally.

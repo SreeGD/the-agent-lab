@@ -128,7 +128,7 @@ Style examples — well-formed answers:
   A: [tool call: retrieve_docs("prompt caching")]
      "Prompt caching works by checkpointing the model's KV cache for a prompt prefix you mark with `cache_control` (NOTES.md). On subsequent requests within the 5-minute TTL, the server reuses the cached KV state and skips the prefill compute — billing cached tokens at $0.30/M instead of $3/M, a 90% discount (LEARNINGS.md). The system prompt is the most common cacheable prefix."
 - Q: "Show me how to use it in a FastAPI app."
-  A: "You'd put the cache marker on the SystemMessage as shown in the tutorial (LEARNINGS.md), and inject it via a FastAPI dependency that returns the ChatOpenAI instance. Roughly: [code]. The caching is invisible to FastAPI — it happens inside the model call."
+  A: "You'd configure the system prompt as shown in the tutorial (LEARNINGS.md), and inject it via a FastAPI dependency that returns the ChatOpenAI instance. Roughly: [code]. The caching is invisible to FastAPI — it happens inside the model call."
 
 Style examples — to AVOID:
 - "I'd be happy to help! Let me look that up for you..." (filler)
@@ -147,11 +147,7 @@ Self-check before every response:
 When all six checks pass, deliver the response."""
 
 
-cached_system = SystemMessage(
-    content=[
-        {"type": "text", "text": LONG_SYSTEM, "cache_control": {"type": "ephemeral"}},
-    ]
-)
+cached_system = SystemMessage(content=LONG_SYSTEM)
 
 
 # =====================================================================
@@ -324,7 +320,6 @@ def safe_chat(user_input: str, thread_id: str) -> dict:
                 out_tok += m.usage_metadata.get("output_tokens", 0)
                 details = m.usage_metadata.get("input_token_details", {}) or {}
                 cache_read += details.get("cache_read", 0) or 0
-                cache_create += details.get("cache_creation", 0) or 0
         elif isinstance(m, ToolMessage) and m.name == "retrieve_docs":
             retrieved_text += m.content + "\n"
 
@@ -350,10 +345,10 @@ def safe_chat(user_input: str, thread_id: str) -> dict:
             "tool_calls": tool_calls_made, "refused": False}
 
 
-def cost_usd(in_tok, out_tok, cache_read, cache_create):
-    """gpt-4o pricing: $2.50 input, $10 output, $1.25 cache_read."""
-    fresh = max(0, in_tok - cache_read - cache_create)
-    return (fresh * 2.5 + out_tok * 10 + cache_read * 1.25 + cache_create * 2.5) / 1_000_000
+def cost_usd(in_tok, out_tok, cache_read, cache_create=0):
+    """gpt-4o pricing: $2.50/M input, $10.00/M output, $1.25/M cache_read (no separate cache_creation cost)."""
+    fresh = max(0, in_tok - cache_read)
+    return (fresh * 2.5 + out_tok * 10 + cache_read * 1.25) / 1_000_000
 
 
 # =====================================================================
