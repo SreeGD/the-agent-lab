@@ -1243,9 +1243,6 @@ def build_planner_graph(checkpointer=None):
     Note: Ollama handles KV cache internally. No cache_control needed on the
     KB system prompt — the runtime reuses computation automatically.
     """
-    if checkpointer is None:
-        raise RuntimeError("langgraph not installed — `pip install langgraph`")
-
     g = StateGraph(PlanGraphState)
     g.add_node("profile_synthesis", _node_profile_synthesis)
     g.add_node("crop_intent", _node_crop_intent)

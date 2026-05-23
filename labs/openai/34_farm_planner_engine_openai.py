@@ -1187,9 +1187,6 @@ def _node_critique(state: PlanGraphState) -> dict:
 
 def build_planner_graph(checkpointer=None):
     """Per-option planning StateGraph with per-crop parallel detailing."""
-    if not _LANGGRAPH_AVAILABLE:
-        raise RuntimeError("langgraph not installed — `pip install langgraph`")
-
     g = StateGraph(PlanGraphState)
     g.add_node("profile_synthesis", _node_profile_synthesis)
     g.add_node("crop_intent", _node_crop_intent)
