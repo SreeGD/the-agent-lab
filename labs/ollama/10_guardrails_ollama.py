@@ -57,7 +57,7 @@ class GuardrailFailure(Exception):
 # Set up the RAG pipeline (same as rag.py)
 # =====================================================================
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent.parent
 print("Initializing RAG pipeline (load -> split -> embed -> store)...")
 
 docs: list[Document] = []

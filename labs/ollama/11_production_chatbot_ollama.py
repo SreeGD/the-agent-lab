@@ -46,7 +46,7 @@ from langgraph.prebuilt import create_react_agent
 # 1. RAG PIPELINE — same shape as rag.py
 # =====================================================================
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent.parent
 print("Initializing RAG pipeline (load -> split -> embed -> store)...")
 
 docs: list[Document] = []

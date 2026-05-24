@@ -28,7 +28,7 @@ load_dotenv()
 MODEL = "gpt-4o"
 model = ChatOpenAI(model=MODEL, temperature=0)
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent.parent
 GENERATED_FILE = HERE / "generated_wordcount.py"
 
 

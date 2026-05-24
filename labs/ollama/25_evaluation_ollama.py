@@ -36,7 +36,7 @@ from rank_bm25 import BM25Okapi
 
 load_dotenv()
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent.parent
 
 MODEL = "llama3.2"
 model = ChatOllama(model=MODEL, temperature=0)

@@ -27,7 +27,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 load_dotenv()
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent.parent
 
 
 # ============================================================================

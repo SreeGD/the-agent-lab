@@ -38,7 +38,7 @@ model = ChatOllama(model=MODEL, temperature=0)
 # RAG pipeline backing the researcher specialist
 # =====================================================================
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent.parent
 print("[multi_agent] Initializing RAG pipeline for researcher...")
 
 _docs: list[Document] = []

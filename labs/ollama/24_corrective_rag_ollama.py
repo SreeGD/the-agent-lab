@@ -35,7 +35,7 @@ from pydantic import BaseModel, Field
 
 load_dotenv()
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent.parent
 
 MODEL = "llama3.2"
 model = ChatOllama(model=MODEL, temperature=0)

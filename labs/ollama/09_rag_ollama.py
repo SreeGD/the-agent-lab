@@ -25,7 +25,7 @@ from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent.parent
 
 
 # ============================================================================

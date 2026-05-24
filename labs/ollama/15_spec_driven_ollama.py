@@ -29,7 +29,7 @@ load_dotenv()
 MODEL = "llama3.2"
 model = ChatOllama(model=MODEL, temperature=0)
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent.parent
 GENERATED_FILE = HERE / "generated_wordcount.py"
 
 

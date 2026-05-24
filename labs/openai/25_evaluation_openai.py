@@ -35,7 +35,7 @@ from rank_bm25 import BM25Okapi
 
 load_dotenv()
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent.parent
 
 MODEL = "gpt-4o"
 model = ChatOpenAI(model=MODEL, temperature=0)

@@ -34,7 +34,7 @@ from pydantic import BaseModel, Field
 
 load_dotenv()
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent.parent
 
 MODEL = "gpt-4o"
 model = ChatOpenAI(model=MODEL, temperature=0)
