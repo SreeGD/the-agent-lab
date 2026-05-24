@@ -1,4 +1,7 @@
 # Requires: ollama serve + ollama pull llama3.2
+# NOTE: llama3.2 (3B) may emit raw <|python_tag|> tool-call text instead of
+# executing multi-step chains. This is a model-capability limitation — use a
+# larger model (llama3.1:70b, mistral-nemo) for reliable multi-agent orchestration.
 """Multi-agent supervisor pattern — supervisor + 3 specialists.
 
 The trick: each specialist is a normal `create_react_agent`. Each is wrapped

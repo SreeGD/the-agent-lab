@@ -155,18 +155,16 @@ print(
     f"\nAuto-generated format_instructions: "
     f"{len(pydantic_parser.get_format_instructions())} chars of JSON-schema prompt"
 )
-print("(These tokens go into every prompt — model.with_structured_output puts")
-print(" the schema in the tools field instead, slightly more token-efficient.)")
+print("NOTE (Ollama): PydanticOutputParser embeds the schema as text instructions.")
+print("Small models like llama3.2 often echo the schema back instead of filling it.")
+print("Using model.with_structured_output() instead — same typed result, uses tool API.")
 
-pydantic_chain = (
-    ChatPromptTemplate.from_messages(
-        [("human", "Analyze this movie review:\n\n{review}\n\n{format_instructions}")]
-    ).partial(format_instructions=pydantic_parser.get_format_instructions())
-    | model
-    | pydantic_parser
+# with_structured_output() is the reliable path for Ollama: it uses the tool-call
+# protocol rather than text format instructions, so the model fills values correctly.
+structured_model = model.with_structured_output(ReviewAnalysis)
+analysis: ReviewAnalysis = structured_model.invoke(
+    f"Analyze this movie review and fill every field:\n\n{REVIEW}"
 )
-
-analysis: ReviewAnalysis = pydantic_chain.invoke({"review": REVIEW})
 print(f"\nResult ({type(analysis).__name__}):")
 print(analysis.model_dump_json(indent=2))
 print("\nDirect typed attribute access:")
