@@ -1172,7 +1172,7 @@ def _node_sustainability(state: PlanGraphState) -> dict:
     result = _call_anthropic_structured(
         SustainabilitySection, prompt,
         label=f"{risk_profile}:sustainability",
-        max_tokens=3072, timeout=180,
+        max_tokens=5120, timeout=240,
     )
     return {"sustainability": result}
 
@@ -1221,7 +1221,7 @@ def _node_cashflow(state: PlanGraphState) -> dict:
     result = _call_anthropic_structured(
         CashFlowSection, prompt,
         label=f"{risk_profile}:cashflow",
-        max_tokens=3072, timeout=180,
+        max_tokens=5120, timeout=240,
     )
     return {"cashflow": result}
 
@@ -1307,18 +1307,14 @@ def build_planner_graph(checkpointer=None):
 
         START
           ↓
-        profile_synthesis                                (small, ~30s — writes KB cache)
-          ├──→ crop_intent (small, ~30s — lists crops)
-          │      ↓ fan out via Send
-          │    crop_detail × N (parallel, ~30-45s each — full CropInPlan per crop)
-          │      ↓ join
-          │    crop_aggregate (deterministic merge)
-          │      ↓
-          │    +─────────────────────────────────────┐
-          │                                          │
-          └──→ livestock_apiary                      │
-                  (small / skipped, parallel)       │
-                                          ↓ ←───────┘
+        profile_synthesis                     (small, ~30s — writes KB cache)
+          ↓
+        crop_intent                           (small, ~30s — lists crops)
+          ├──→ crops_parallel                 (threaded, ~30-45s — full CropInPlan per crop)
+          │                                           │
+          └──→ livestock_apiary               ←───────┘
+                  (small / skipped)           fan-in — symmetric superstep
+                                          ↓
                                   sustainability
                                           ↓
                                        cashflow
@@ -1347,11 +1343,13 @@ def build_planner_graph(checkpointer=None):
 
     # Entry
     g.add_edge(START, "profile_synthesis")
-    # Fan out to two parallel-ish branches at the graph level
+    # profile_synthesis → crop_intent (gets the crop list first)
     g.add_edge("profile_synthesis", "crop_intent")
-    g.add_edge("profile_synthesis", "livestock_apiary")
-    # Crop intent → crops_parallel (single edge; threading inside the node)
+    # crop_intent fans out to crops_parallel AND livestock_apiary in the SAME superstep
+    # so the fan-in at sustainability is symmetric and LangGraph waits for both.
+    # (livestock_apiary only needs profile+goals+profile_synthesis, all in state by now)
     g.add_edge("crop_intent", "crops_parallel")
+    g.add_edge("crop_intent", "livestock_apiary")
     # Join into sustainability — waits for BOTH crops_parallel AND livestock_apiary
     g.add_edge("crops_parallel", "sustainability")
     g.add_edge("livestock_apiary", "sustainability")

@@ -23,6 +23,15 @@ engine = importlib.util.module_from_spec(_spec)
 sys.modules["engine"] = engine
 _spec.loader.exec_module(engine)
 
+import importlib.util as _ilu
+_yo_path = Path(__file__).parent / "agritech" / "yield_optimizer_engine.py"
+_yo_spec = _ilu.spec_from_file_location("yield_optimizer_engine", _yo_path)
+if _yo_spec is None:
+    raise ImportError(f"yield_optimizer_engine not found at {_yo_path}")
+yo_engine = _ilu.module_from_spec(_yo_spec)
+sys.modules["yield_optimizer_engine"] = yo_engine
+_yo_spec.loader.exec_module(yo_engine)
+
 st.set_page_config(
     page_title="Suryapet Farm Planner",
     page_icon=":seedling:",
@@ -40,6 +49,8 @@ if "current_plan" not in st.session_state:
     st.session_state.current_plan = None
 if "current_score" not in st.session_state:
     st.session_state.current_score = None
+if "yo_plan" not in st.session_state:
+    st.session_state.yo_plan = None
 
 
 # =====================================================================
@@ -53,7 +64,7 @@ st.sidebar.divider()
 page = st.sidebar.radio(
     "Navigate",
     ["Home", "Farm Profile", "Goals & Constraints", "Generate Plan",
-     "View Plan", "Sustainability Audit", "About"],
+     "Yield Optimizer", "View Plan", "Sustainability Audit", "About"],
     label_visibility="collapsed",
 )
 
@@ -465,6 +476,317 @@ def page_generate():
 
 
 # =====================================================================
+# Page: Yield Optimizer
+# =====================================================================
+
+def page_yield_optimizer():
+    st.title("Crop Yield Optimizer")
+    st.caption("Deep-dive playbook for one crop on one patch. Complements the Farm Plan.")
+
+    # ── Farmer selector ──────────────────────────────────────────
+    profiles = engine.list_profiles()
+    if not profiles:
+        st.warning("No farmer profiles found. Create one in Farm Profile first.")
+        st.stop()
+
+    farmer_names = {p.farmer_id: p.name for p in profiles}
+    selected_id = st.selectbox(
+        "Farmer profile",
+        options=list(farmer_names.keys()),
+        format_func=lambda fid: f"{farmer_names[fid]} ({fid})",
+        index=0 if st.session_state.current_farmer_id is None
+              else (list(farmer_names.keys()).index(st.session_state.current_farmer_id)
+                    if st.session_state.current_farmer_id in farmer_names else 0),
+    )
+    profile = engine.load_profile(selected_id)
+
+    st.divider()
+
+    # ── Crop type radio ──────────────────────────────────────────
+    crop_type = st.radio(
+        "Crop type",
+        options=["annual_grain", "annual_fiber", "annual_oilseed",
+                 "perennial_fruit", "perennial_timber", "perennial_oilseed"],
+        format_func=lambda x: {
+            "annual_grain": "Annual Grain (paddy, corn)",
+            "annual_fiber": "Annual Fiber (cotton)",
+            "annual_oilseed": "Annual Oilseed (groundnut, sesame)",
+            "perennial_fruit": "Perennial Fruit (mango, lemon, avocado)",
+            "perennial_timber": "Perennial Timber (eucalyptus)",
+            "perennial_oilseed": "Perennial Oilseed (palm oil)",
+        }[x],
+        horizontal=True,
+    )
+
+    # ── Focus inputs ─────────────────────────────────────────────
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        focused_crop = st.text_input("Crop name", placeholder="e.g. Thailand Lemon, BPT 5204 Paddy, Bt Cotton")
+    with col2:
+        focused_variety = st.text_input("Variety (optional — advisor will recommend if blank)", placeholder="e.g. NHH 44, Banganapalli")
+    with col3:
+        focused_acres = st.number_input("Focused acres", min_value=0.25, max_value=100.0, value=1.0, step=0.25)
+
+    # ── Stage selector ───────────────────────────────────────────
+    current_stage = st.selectbox(
+        "Current stage",
+        options=["planning", "planted_y1", "planted_y2_y4", "mature_bearing"],
+        format_func=lambda x: {
+            "planning": "Planning (not yet planted)",
+            "planted_y1": "Planted — Year 1",
+            "planted_y2_y4": "Planted — Years 2-4",
+            "mature_bearing": "Mature / Bearing",
+        }[x],
+    )
+
+    # ── Goal inputs ──────────────────────────────────────────────
+    col_a, col_b = st.columns(2)
+    with col_a:
+        yield_goal_pct = st.slider("Yield improvement target (%)", 0, 100, 20, step=5,
+                                    help="0 = no specific target, advisor will set benchmark")
+    with col_b:
+        investment_cap = st.number_input("Investment cap (₹, 0 = no cap)", min_value=0, max_value=2000000,
+                                          value=0, step=10000)
+
+    # ── Constraint checkboxes ────────────────────────────────────
+    col_x, col_y, col_z = st.columns(3)
+    with col_x:
+        organic_required = st.checkbox("Organic certification required")
+    with col_y:
+        avoid_chemicals = st.checkbox("Avoid chemical pesticides")
+    with col_z:
+        labor_cap = st.selectbox("Labor cap", ["family_only", "seasonal", "year_round"],
+                                  format_func=lambda x: {"family_only": "Family only", "seasonal": "Seasonal hired", "year_round": "Year-round hired"}[x])
+
+    parcel_notes = st.text_area("Parcel notes (optional)", placeholder="Soil type, slope, water source distance, existing crops nearby...")
+
+    st.divider()
+
+    # ── Optimize button ──────────────────────────────────────────
+    if st.button("Optimize yield", type="primary", disabled=not focused_crop.strip()):
+        yo_profile = yo_engine.YieldOptimizationProfile(
+            farmer_id=selected_id,
+            focused_acres=focused_acres,
+            parcel_notes=parcel_notes or None,
+            focused_crop=focused_crop.strip(),
+            focused_variety=focused_variety.strip() or None,
+            crop_type=crop_type,
+            current_stage=current_stage,
+            existing_inputs=None,
+            yield_goal_pct_improvement=float(yield_goal_pct) if yield_goal_pct > 0 else None,
+            yield_goal_absolute_per_acre=None,
+            organic_required=organic_required,
+            avoid_chemical_pesticides=avoid_chemicals,
+            investment_cap_inr=int(investment_cap) if investment_cap > 0 else None,
+            labor_cap=labor_cap,
+            notes=None,
+        )
+
+        node_labels = {
+            "variety_and_land":          "🌱 Variety selection + land prep",
+            "spacing_water_nutrition":   "💧 Spacing, water & nutrition",
+            "protection":                "🛡️ Crop protection + IPM",
+            "harvest_economics_risks":   "💰 Harvest, economics & risks",
+            "assemble":                  "🧩 Assembling plan",
+            "critique":                  "🎯 Devil's advocate critique",
+        }
+
+        status = st.status(
+            f"Optimizing {focused_crop} yield ({focused_acres} ac) ...",
+            expanded=True,
+        )
+        try:
+            plan = None
+            for ev in yo_engine.stream_yield_plan(yo_profile):
+                for node, delta in ev.items():
+                    label = node_labels.get(node, node)
+                    status.write(f"✓ {label} done")
+                    if "plan" in delta:
+                        plan = yo_engine.YieldOptimizationPlan.model_validate(delta["plan"])
+                    if "critique" in delta and plan is not None:
+                        critique_obj = yo_engine.YieldCritique.model_validate(delta["critique"])
+                        plan = plan.model_copy(update={"critique": critique_obj})
+
+            if plan is None:
+                raise RuntimeError("Optimizer completed but plan is missing")
+
+            st.session_state.yo_plan = plan
+            status.update(
+                label=f"Plan ready · {plan.focused_crop} ({plan.focused_variety}) · "
+                      f"confidence {plan.critique.overall_confidence:.2f}",
+                state="complete",
+            )
+        except Exception as e:
+            status.update(state="error")
+            st.error(f"Failed: {type(e).__name__}: {e}")
+            st.stop()
+
+    # ── Results ──────────────────────────────────────────────────
+    plan = st.session_state.get("yo_plan")
+    if plan is not None:
+        st.divider()
+        st.subheader(f"{plan.focused_crop} — {plan.focused_variety} · {plan.focused_acres} ac")
+
+        # Section 1: Variety + Land
+        with st.expander("1. Variety & Land Preparation", expanded=True):
+            st.write(plan.variety_rationale)
+            lp = plan.land_preparation
+            st.markdown(f"**Soil test needed:** {'Yes' if lp.soil_test_needed else 'No'}  \n"
+                        f"**Bed type:** {lp.bed_type}  \n"
+                        f"**Drainage:** {lp.drainage_notes}  \n"
+                        f"**Amendments:** {', '.join(lp.amendments) if lp.amendments else 'None'}")
+            if plan.clone_selection:
+                cs = plan.clone_selection
+                st.markdown(f"**Clones:** {', '.join(cs.recommended_clones)} from {cs.source_organization}  \n"
+                            f"**Expected yield:** {cs.expected_yield_per_acre_per_rotation}  \n"
+                            f"**Productive life:** {cs.productive_lifetime_years} years")
+
+        # Section 2: Spacing, Water & Irrigation
+        with st.expander("2. Spacing, Water & Irrigation"):
+            sd = plan.spacing_and_density
+            wr = plan.water_regime
+            st.markdown(f"**Spacing:** {sd.row_spacing_m}m × {sd.plant_spacing_m}m ({sd.plants_per_acre} plants/acre)  \n"
+                        f"**Water method:** {wr.primary_method}  \n"
+                        f"**Rationale:** {wr.rationale}")
+            if wr.water_savings_pct:
+                st.markdown(f"**Water savings:** {wr.water_savings_pct:.0f}%  |  **Yield impact:** {wr.yield_impact_pct:+.0f}%")
+
+        # Section 3: Nutrition
+        with st.expander("3. Nutrition Program"):
+            for ns in plan.nutrition_program:
+                st.markdown(f"**{ns.stage_name}** ({ns.dap_range}): {', '.join(ns.fertilizers)}")
+                if ns.notes:
+                    st.caption(ns.notes)
+            if plan.nitrogen_split_protocol:
+                nsp = plan.nitrogen_split_protocol
+                st.markdown(f"**Total N:** {nsp.total_n_kg_per_acre} kg/acre")
+                for s in nsp.splits:
+                    st.markdown(f"  - {s.stage} — {s.pct}% at day {s.days_after_sowing}")
+
+        # Section 4: Crop Protection
+        with st.expander("4. IPM & Crop Protection"):
+            if plan.pest_calendar:
+                rows = [{"Month": pe.month, "Pest": pe.pest_name, "Threshold": pe.threshold,
+                         "Organic action": pe.organic_action, "Chemical action": pe.chemical_action}
+                        for pe in plan.pest_calendar]
+                st.dataframe(pd.DataFrame(rows), use_container_width=True)
+            if plan.fall_armyworm_protocol:
+                faw = plan.fall_armyworm_protocol
+                st.markdown(f"**⚠️ Fall Armyworm:** {faw.monitoring_protocol}  \n"
+                            f"Threshold: {faw.threshold_for_action}  \n"
+                            f"Expected loss without action: {faw.expected_damage_without_intervention}")
+            if plan.refuge_strategy:
+                r = plan.refuge_strategy
+                st.markdown(f"**Refuge (Bt resistance):** {r.refuge_acres:.2f} ac of {r.refuge_crop} — {r.rationale}")
+            if plan.wildlife_deterrent_plan:
+                wd = plan.wildlife_deterrent_plan
+                st.markdown(f"**Wildlife:** {', '.join(wd.threats)} — {', '.join(wd.deterrent_methods)}")
+
+        # Section 5: Crop-stage specifics
+        with st.expander("5. Canopy, PBZ & Pollination"):
+            if plan.canopy_management:
+                cm = plan.canopy_management
+                st.markdown(f"**Pruning:** {cm.pruning_type} — {cm.technique} ({cm.timing})  \n"
+                            f"Yield impact: {cm.expected_yield_impact_pct:+.0f}%")
+            if plan.paclobutrazol_protocol:
+                pbz = plan.paclobutrazol_protocol
+                st.markdown(f"**PBZ:** {pbz.dose_per_tree_g}g/tree via {pbz.application_method} at {pbz.application_timing}  \n"
+                            f"Off-season yield: {pbz.expected_off_season_yield_pct:.0f}%  \n"
+                            f"Risks: {', '.join(pbz.risks)}")
+            if plan.off_season_strategy:
+                oss = plan.off_season_strategy
+                st.markdown(f"**Off-season window:** {oss.target_off_season_window}  \n"
+                            f"Price premium: {oss.expected_price_premium_pct:.0f}%  \n"
+                            f"Extra investment: {oss.additional_investment_inr}")
+            if plan.pollination_strategy:
+                ps = plan.pollination_strategy
+                st.markdown(f"**Pollination:** {ps.method} — {ps.details}  \n"
+                            f"Expected yield boost: {ps.expected_yield_boost_pct:+.0f}%")
+            if plan.coppice_strategy:
+                cs = plan.coppice_strategy
+                st.markdown(f"**Coppice:** {cs.coppice_cycles} cycles × {cs.rotation_cycle_years} yr  \n"
+                            f"Yield per cycle: {', '.join([f'{p:.0f}%' for p in cs.yield_per_cycle_pct])}")
+
+        # Section 6: Harvest & Post-harvest
+        with st.expander("6. Harvest & Post-harvest"):
+            hp = plan.harvest_and_postharvest
+            st.markdown(f"**Maturity indicators:** {', '.join(hp.maturity_indicators) if isinstance(hp.maturity_indicators, list) else hp.maturity_indicators}  \n"
+                        f"**Method:** {hp.harvest_method}  \n"
+                        f"**Storage:** {hp.storage_notes}")
+            if hp.post_harvest_steps:
+                for step in hp.post_harvest_steps:
+                    st.markdown(f"- {step}")
+            if plan.buyback_contract_strategy:
+                bc = plan.buyback_contract_strategy
+                st.markdown(f"**Buyback contract:** {bc.recommended_buyer} — {bc.contract_duration_years} yr  \n"
+                            f"Pricing: {bc.pricing_mechanism}  \n"
+                            f"Rationale: {bc.rationale}")
+
+        # Section 7: Economics
+        with st.expander("7. Economics & Cash Flow"):
+            if plan.yield_benchmarks:
+                bm_rows = [{"Year": b.year, f"Low ({b.unit})": b.low_yield,
+                            f"High ({b.unit})": b.high_yield, "Notes": b.notes}
+                           for b in plan.yield_benchmarks]
+                st.markdown("**Yield benchmarks**")
+                st.dataframe(pd.DataFrame(bm_rows), use_container_width=True, hide_index=True)
+            if plan.decadal_cash_flow:
+                cf_rows = [{"Year": c.year, "Investment (₹)": c.investment_inr,
+                            "Revenue (₹)": c.revenue_inr, "Net (₹)": c.net_inr, "Notes": c.notes}
+                           for c in plan.decadal_cash_flow]
+                st.markdown("**Cash flow**")
+                st.dataframe(pd.DataFrame(cf_rows), use_container_width=True, hide_index=True)
+            bcomp = plan.benchmark_comparison
+            st.markdown(f"**Your target:** {bcomp.target} {bcomp.unit}  |  "
+                        f"District avg: {bcomp.district_average}  |  State best: {bcomp.state_best}  \n"
+                        f"{bcomp.gap_analysis}")
+            if plan.carbon_credit_potential:
+                cc = plan.carbon_credit_potential
+                st.info(f"**Carbon credits:** {cc.scheme_name} — {cc.estimated_tco2e_per_acre_per_year} tCO₂e/acre/yr → "
+                        f"₹{cc.revenue_inr_per_acre_per_year}/acre/yr via {cc.certification_body}. {', '.join(cc.caveats) if isinstance(cc.caveats, list) else cc.caveats}")
+
+        # Section 8: Risks & Optimization Levers
+        with st.expander("8. Risks & Optimization Levers"):
+            if plan.risk_register:
+                risk_rows = [{"Risk": r.risk, "Probability": r.probability,
+                              "Impact": r.impact, "Mitigation": r.mitigation}
+                             for r in plan.risk_register]
+                st.dataframe(pd.DataFrame(risk_rows), use_container_width=True, hide_index=True)
+            if plan.optimization_levers:
+                st.markdown("**Top levers (ranked by priority)**")
+                for lv in sorted(plan.optimization_levers, key=lambda x: x.ranked_priority):
+                    st.markdown(f"**{lv.ranked_priority}. {lv.lever}** — ↑{lv.yield_uplift_pct:.0f}% yield · "
+                                f"₹{lv.investment_inr} · {lv.payback} · {lv.difficulty}")
+
+        # Section 9: Critique
+        with st.expander("9. Devil's Advocate Critique"):
+            crit = plan.critique
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**Why target IS realistic:**")
+                for r in crit.why_target_is_realistic:
+                    st.markdown(f"✅ {r}")
+            with col2:
+                st.markdown("**Why target might NOT be realistic:**")
+                for r in crit.why_target_might_NOT_be_realistic:
+                    st.markdown(f"⚠️ {r}")
+            st.metric("Overall confidence", f"{crit.overall_confidence:.2f}")
+            st.caption(f"Biggest yield gap driver: {crit.biggest_yield_gap_driver}")
+
+        # Download markdown
+        st.divider()
+        md_lines = [f"# Yield Optimizer Plan — {plan.focused_crop} ({plan.focused_variety})",
+                    f"Farmer: {plan.farmer_id} | Acres: {plan.focused_acres} | Stage: {plan.current_stage}",
+                    f"Confidence: {plan.critique.overall_confidence:.2f}",
+                    "", "---", "",
+                    f"## Variety Rationale", plan.variety_rationale,
+                    "", "## Biggest Yield Gap Driver", plan.critique.biggest_yield_gap_driver,
+                    ]
+        st.download_button("⬇️ Download plan (Markdown)", "\n".join(md_lines),
+                           file_name=f"yield_plan_{plan.plan_id}.md", mime="text/markdown")
+
+
+# =====================================================================
 # Page: View Plan
 # =====================================================================
 
@@ -812,6 +1134,7 @@ PAGES = {
     "Farm Profile": page_profile,
     "Goals & Constraints": page_goals,
     "Generate Plan": page_generate,
+    "Yield Optimizer": page_yield_optimizer,
     "View Plan": page_view_plan,
     "Sustainability Audit": page_sust_audit,
     "About": page_about,
