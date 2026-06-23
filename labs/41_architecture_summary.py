@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 load_dotenv()
 
 MODEL = "claude-opus-4-7"
-llm = ChatAnthropic(model=MODEL, temperature=0, max_tokens=4096)
+llm = ChatAnthropic(model=MODEL, max_tokens=4096)
 
 
 SYSTEM_PROMPT = """You are a senior software architect performing a codebase orientation.
