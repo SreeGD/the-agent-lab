@@ -120,19 +120,64 @@ The agentic version handles edge cases, ambiguity, and linguistic variation that
 
 ## The 7 Building Blocks
 
+Every LLM call — from a two-word query to a 50-page document analysis — flows through the same seven mechanisms. They are not independent; each one feeds the next. The diagram below shows how they interlock. The worked example beneath it traces a single real prompt through all seven so you see them as a system before zooming into each.
+
 ```mermaid
-flowchart LR
-    P[Prompt] --> T[Tokenizer\nBPE]
-    T --> KV[KV Cache\ncheck]
-    KV -->|cache hit| SK[Skip\nPrefill]
-    KV -->|cache miss| PF[Prefill\nattention layers]
-    SK --> S[Sampling\ntemp · top-p · top-k]
-    PF --> S
-    S -->|next token| DEC[Decode\nautoregressively]
-    DEC -->|EOS| OUT[Output Tokens]
-    OUT --> DT[Detokenizer]
-    DT --> R[Response Text]
+flowchart TD
+    subgraph B2["② Tokenization (BPE)"]
+        TOK["'Summarize this quarterly report'\n→ 7 tokens  ·  ~28 chars"]
+    end
+
+    subgraph B3["③ Context Window"]
+        CW["7 tokens + 40-page report ≈ 32 000 tokens\n16 % of a 200 K window"]
+    end
+
+    subgraph B1["① Transformer"]
+        ATT["48 layers of self-attention\nUnderstands: summarise = extract,\n'3 bullets' = format constraint,\n'quarterly' = finance domain"]
+    end
+
+    subgraph B4["④ Sampling"]
+        SAMP["temperature = 0\nGreedy → same bullets every run\n(deterministic for business docs)"]
+    end
+
+    OUT["• Revenue up 12 % YoY\n• Operating margin compressed by supply chain\n• Guidance raised for Q3"]
+
+    B2 --> B3 --> B1 --> B4 --> OUT
+
+    subgraph B5["⑤ Reasoning Models"]
+        THINK["Extended thinking: budget_tokens = 8 000\nTraces the numbers before writing\nUse for complex financial analysis"]
+    end
+
+    subgraph B6["⑥ Benchmarks"]
+        BENCH["MMLU → finance knowledge\nLMSYS Arena → human preference\nno benchmark = 'good at summaries'"]
+    end
+
+    subgraph B7["⑦ Model Family"]
+        MODEL["Haiku  → quick draft  (cheap)\nSonnet → polished summary  (balanced)\nOpus   → deep analysis  (expensive)"]
+    end
+
+    B4 -. "complex doc?" .-> B5
+    OUT -. "how good is it?" .-> B6
+    B2 -. "which model?" .-> B7
 ```
+
+---
+
+### Worked Example — One Prompt, All Seven Blocks
+
+**Prompt:** *"Summarize this quarterly report in 3 bullet points."* (plus a 40-page PDF)
+
+| Block | What happens | Why it matters |
+|---|---|---|
+| **① Transformer** | 48 attention layers read every token simultaneously — understanding that "summarize" = extract, "3 bullets" = format, "quarterly" = business domain | Depth gives reasoning; width gives capacity. More layers = better nuance. |
+| **② Tokenization** | "Summarize this quarterly report in 3 bullet points" → 11 tokens. The 40-page PDF → ~32 000 tokens. Code or tables cost 2–3× more tokens per character than prose. | Token count = API cost + latency. Knowing this lets you budget intelligently. |
+| **③ Context Window** | 32 011 tokens total fits inside a 200 K window (16%). The model can attend to the entire report in one call — no chunking needed. | If you exceed the window, you need RAG. Knowing the fill % tells you which path to take. |
+| **④ Sampling** | `temperature=0` → greedy decoding → same three bullets on every run. No randomness needed for business document extraction. | Wrong temperature = unpredictable outputs. Use 0 for extraction, 0.7+ for creative tasks. |
+| **⑤ Reasoning Models** | Optional: `budget_tokens=8000` lets the model trace revenue figures before writing. Costs more but catches errors a single pass misses. | Use for high-stakes analysis. Skip for simple summaries — it's slower and pricier. |
+| **⑥ Benchmarks** | MMLU measures whether the model knows finance; LMSYS Arena measures whether humans prefer its summaries. No single score = "good at your task." | Always run your own eval on your own data before committing to a model. |
+| **⑦ Model Family** | Haiku: fast draft at low cost. Sonnet: polished, production-ready. Opus: deep analysis, cross-referencing figures. Start with Sonnet; escalate only if Sonnet fails your eval. | Over-engineering to Opus costs 10× more. Under-engineering to Haiku misses nuance. |
+
+---
 
 ### 1. Transformers
 
