@@ -293,6 +293,73 @@ A: This *is* ReAct — Reason + Act. The model reasons (decides to call a tool),
 
 ---
 
+## Parallel Tool Calls
+
+Claude can return multiple `tool_use` blocks in a single response when the
+tools are independent. Sequential dispatch wastes latency:
+
+```
+Sequential (100ms + 200ms = 300ms total):
+  ── tool_1 ──────────────►
+                            ── tool_2 ──────────────►
+
+Parallel (200ms total — longest tool wins):
+  ── tool_1 ──────────────►
+  ── tool_2 ──────────────────────────────────────►
+```
+
+### dispatch_tools_parallel
+
+```python
+import asyncio
+from typing import Any
+
+def dispatch_tools_parallel(tool_use_blocks: list[Any]) -> list[dict[str, Any]]:
+    """Dispatch all tool_use blocks concurrently; return tool_result dicts."""
+
+    async def _call(block: Any) -> dict[str, Any]:
+        if block.name == "add":
+            result = add.invoke(block.input)
+        elif block.name == "get_current_time":
+            result = get_current_time.invoke(block.input)
+        else:
+            result = f"Unknown tool: {block.name}"
+        return {"type": "tool_result", "tool_use_id": block.id, "content": str(result)}
+
+    async def _run_all() -> list[dict[str, Any]]:
+        return await asyncio.gather(
+            *[_call(b) for b in tool_use_blocks if b.type == "tool_use"]
+        )
+
+    return asyncio.run(_run_all())
+```
+
+### When Claude returns multiple tool_use blocks
+
+Claude returns multiple tool_use blocks in one response when the model
+determines the tools are independent — it has seen from the tool descriptions
+that `add` and `get_current_time` don't depend on each other's output.
+
+```python
+response = model.invoke(history)
+# response.content might be:
+# [ToolUseBlock(name="add", input={"a": 47, "b": 158}),
+#  ToolUseBlock(name="get_current_time", input={})]
+
+results = dispatch_tools_parallel(response.content)
+# → [{"type": "tool_result", "tool_use_id": "t1", "content": "205"},
+#    {"type": "tool_result", "tool_use_id": "t2", "content": "2025-06-27T12:34:56"}]
+```
+
+Feed `results` back as `ToolMessage` objects for the next model turn.
+
+**Production note:** for I/O-bound tools (API calls, DB queries), parallel
+dispatch is a free latency win. For CPU-bound tools in a single-threaded Python
+process, the `asyncio` overhead is negligible but the gains depend on whether
+the tools release the GIL.
+
+---
+
 ## Related
 
 - **Previous:** [02 — LCEL composition](02-lcel-composition.md)
