@@ -28,6 +28,96 @@ you need to make smart decisions about models, context budgets, and sampling.
 
 ---
 
+## Coming from Traditional SDLC?
+
+If you've shipped REST APIs, microservices, or data pipelines, you already know more than you think. Here's the full concept map:
+
+| Traditional SDLC | LLM / Agentic Equivalent | Key Difference |
+|---|---|---|
+| `POST /classify` endpoint | `client.messages.create()` | Response is probabilistic, not deterministic |
+| JSON schema validation | `model.with_structured_output(PydanticModel)` | LLM fills the schema from natural language |
+| `application.properties` / config | System prompt | Behavior is specified in prose, not key-value pairs |
+| Unit test fixtures (input → expected output) | Few-shot examples in the prompt | You're showing the model what "right" looks like |
+| `if/else` routing logic | Supervisor agent routing | The LLM reads context and decides the branch |
+| `try/except` error handling | Guardrails (input/output validation) | Catch semantic violations, not just exceptions |
+| `SELECT ... FROM ... WHERE` | RAG retrieval (semantic search) | Matches by meaning, not exact string |
+| Debug logging / `console.log` | Chain-of-thought / extended thinking | Makes the model's reasoning visible |
+| Redis cache layer | Prompt cache | Saves the expensive "prefill" step on repeated context |
+| Microservice | Agent | Can plan its own multi-step execution path |
+| Event bus / Kafka topic | Multi-agent message passing | Agents produce/consume structured messages |
+| Strategy pattern / function dispatch | Tool calling | LLM picks which function to invoke based on context |
+| CI/CD pipeline | LangGraph state machine | Nodes = steps, edges = conditions, state = shared context |
+| Rate limiter | `max_tokens` budget | Caps cost/latency per call |
+| Integration test | LLM eval (Ragas, custom judge) | Tests semantic correctness, not exact string match |
+| Schema migration | Prompt versioning | A prompt change = a deploy; version-control your prompts |
+
+---
+
+### The Three Mental Shifts
+
+**1. Deterministic → Probabilistic**
+
+Traditional function:
+```python
+def classify(text: str) -> str:
+    if "great" in text or "love" in text:
+        return "positive"
+    return "negative"
+```
+
+LLM equivalent:
+```python
+def classify(text: str, client) -> str:
+    response = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=10,
+        temperature=0,
+        messages=[{"role": "user", "content": f"Classify as positive/negative: {text}"}]
+    )
+    return response.content[0].text.strip().lower()
+```
+
+Same call, same input — may give slightly different output across model versions or without `temperature=0`. **Design for variance. Use evals, not assertions.**
+
+---
+
+**2. Syntactic → Semantic**
+
+Traditional code processes exact strings. An LLM understands meaning.
+
+```
+Traditional DB query:  WHERE review_text LIKE '%great%'
+RAG query:             similarity_search("customer loved the product")
+```
+
+The RAG query matches *meaning*, not keywords. "Fantastic experience", "10/10 would buy again", and "This exceeded my expectations" all retrieve as similar — even if none contain the word "great".
+
+---
+
+**3. Code Logic → Natural Language Instructions**
+
+Traditional: you encode logic in Python.
+Agentic: you encode intent in prose, and the model handles the logic.
+
+```
+Traditional:  if len(entities) > 1 and entities[0]["type"] == "ORG": ...
+Agentic:      "Extract the primary organization mentioned. If none, return null."
+```
+
+The agentic version handles edge cases, ambiguity, and linguistic variation that traditional regex/parse code misses — but it's harder to unit-test. **This is the trade-off you're signing up for.**
+
+---
+
+### What Stays the Same
+
+- **Interfaces still matter.** Define input/output contracts with Pydantic, exactly like you would for a REST API.
+- **State must be explicit.** LLMs have no memory between calls. Pass conversation history or use a memory store — same as stateless HTTP services.
+- **Observability is non-negotiable.** Log your prompts, responses, token counts, and latencies. LangSmith / Langfuse = your APM for LLM calls.
+- **Fail fast at boundaries.** Validate LLM output before using it downstream, exactly like you'd validate external API responses.
+- **Version your prompts.** A prompt change is a code change. Review it, test it, deploy it intentionally.
+
+---
+
 ## The 7 Building Blocks
 
 ```mermaid
@@ -266,3 +356,19 @@ for current numbers.
 - Anthropic token counting docs: https://docs.anthropic.com/en/docs/build-with-claude/token-counting
 - LMSYS Chatbot Arena: https://chat.lmsys.org
 - MMLU paper: https://arxiv.org/abs/2009.03300
+
+---
+
+## SDLC Engineer Checklist
+
+Before you build your first agentic feature, confirm you understand:
+
+- [ ] What a token is and roughly how many your prompts consume
+- [ ] Why the same prompt can return different outputs (and how to control it)
+- [ ] Why `temperature=0` is not the same as "always identical" across model updates
+- [ ] The difference between context window and memory
+- [ ] How RAG replaces a database lookup (not augments it)
+- [ ] Why you validate LLM output with Pydantic, not `assert`
+- [ ] What "eval" means in the LLM world (it's not `pytest`)
+
+All seven are covered in the sessions that follow.

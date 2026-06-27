@@ -75,6 +75,73 @@ def print_benchmark_table(rows: list[dict[str, Any]]) -> None:
         )
 
 
+def sdlc_analogy_demo(client: anthropic.Anthropic) -> dict[str, Any]:
+    """Show the same task solved two ways: traditional rule-based vs LLM.
+
+    Helps SDLC engineers see where LLMs replace brittle if/else chains.
+    """
+    text = "This product exceeded all my expectations! Absolutely love it."
+
+    # Traditional approach: keyword matching
+    positive_words = {"love", "great", "excellent", "amazing", "exceeded", "fantastic"}
+    negative_words = {"hate", "terrible", "awful", "broken", "waste", "horrible"}
+    words = set(text.lower().split())
+    if words & positive_words:
+        traditional_result = "positive"
+    elif words & negative_words:
+        traditional_result = "negative"
+    else:
+        traditional_result = "unknown"
+
+    # LLM approach: natural language instruction
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=20,
+        temperature=0,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f"Classify the sentiment as exactly one word: "
+                    f"positive, negative, or neutral.\n\nText: {text}"
+                ),
+            }
+        ],
+    )
+    llm_result = response.content[0].text.strip().lower()
+
+    return {
+        "input": text,
+        "traditional_keyword_match": traditional_result,
+        "llm_classification": llm_result,
+        "tokens_used": response.usage.input_tokens + response.usage.output_tokens,
+    }
+
+
+def token_cost_estimator(texts: list[str], client: anthropic.Anthropic) -> list[dict[str, Any]]:
+    """Estimate token counts for a list of texts — like a query cost estimator for your LLM calls.
+
+    Shows SDLC engineers how to think about token budgets the same way they
+    think about DB query costs or API call quotas.
+    """
+    results = []
+    for text in texts:
+        response = client.messages.count_tokens(
+            model=MODEL,
+            messages=[{"role": "user", "content": text}],
+        )
+        tokens = response.input_tokens
+        # Approximate cost: Sonnet 4.6 input = ~$3 per 1M tokens
+        cost_usd = (tokens / 1_000_000) * 3.0
+        results.append({
+            "preview": text[:60] + ("..." if len(text) > 60 else ""),
+            "tokens": tokens,
+            "cost_usd": round(cost_usd, 6),
+            "chars_per_token": round(len(text) / tokens, 2) if tokens else 0,
+        })
+    return results
+
+
 def main() -> None:
     """Run the LLM Fundamentals lab interactively."""
     client = anthropic.Anthropic()
@@ -106,6 +173,36 @@ def main() -> None:
     print("=" * 64)
     print_benchmark_table(benchmark_table())
     print("\n(Source: public leaderboards as of 2026-06)")
+
+    print("\n" + "=" * 64)
+    print("5. SDLC ANALOGY — TRADITIONAL vs LLM CLASSIFICATION")
+    print("=" * 64)
+    demo = sdlc_analogy_demo(client)
+    print(f"Input:                   {demo['input'][:55]}...")
+    print(f"Traditional (keywords):  {demo['traditional_keyword_match']}")
+    print(f"LLM (natural language):  {demo['llm_classification']}")
+    print(f"Tokens consumed:         {demo['tokens_used']}")
+    print("\nKey insight: the LLM handles 'exceeded', 'love', and edge cases")
+    print("the keyword list doesn't know about — without code changes.")
+
+    print("\n" + "=" * 64)
+    print("6. TOKEN COST ESTIMATOR (like query cost for DB engineers)")
+    print("=" * 64)
+    sample_texts = [
+        "What is the weather today?",
+        "Explain the transformer architecture in detail, covering attention heads, "
+        "residual streams, and how depth relates to reasoning capability.",
+        "def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)",
+    ]
+    estimates = token_cost_estimator(sample_texts, client)
+    print(f"\n{'Text preview':<45} {'Tokens':>7} {'Cost (USD)':>12} {'Chars/tok':>10}")
+    print("-" * 78)
+    for est in estimates:
+        print(
+            f"{est['preview']:<45} {est['tokens']:>7} "
+            f"${est['cost_usd']:>11.6f} {est['chars_per_token']:>10.2f}"
+        )
+    print("\nRule of thumb: ~4 chars/token for English prose; code costs 2-3x more.")
 
 
 if __name__ == "__main__":
