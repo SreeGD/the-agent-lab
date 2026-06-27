@@ -277,6 +277,82 @@ A: WAFs work at the HTTP/transport layer (rate limit, IP blocking, basic pattern
 
 ---
 
+## Guardrails AI & NeMo Guardrails
+
+Two library-based guardrail frameworks complement the hand-rolled patterns above.
+
+### guardrails-ai — declarative validators
+
+```bash
+pip install guardrails-ai
+```
+
+```python
+from guardrails import Guard
+from guardrails.hub import ToxicLanguage
+
+guard = Guard().use(ToxicLanguage(threshold=0.5, on_fail="exception"))
+
+def guardrails_check(text: str, guard) -> str:
+    """Validate text with a guardrails-ai Guard; raise ValueError if blocked."""
+    result = guard.validate(text)
+    if not result.validation_passed:
+        raise ValueError(f"Input blocked by guardrail: {result.error}")
+    return text
+
+safe_text = guardrails_check("How do I make a bomb?", guard)  # → raises ValueError
+safe_text = guardrails_check("What is prompt caching?", guard)  # → returns text
+```
+
+**When to pick guardrails-ai over hand-rolled:** You need a large library of community validators (PII, toxicity, SQL injection, JSON schema, regex) and don't want to write every check from scratch. The hub has 50+ pre-built validators.
+
+### NeMo Guardrails — conversation-level flow control
+
+NeMo Guardrails (by NVIDIA) adds a colang scripting layer that intercepts
+conversation flows before they reach the LLM. Instead of per-call validators,
+you describe *dialogue flows* to block:
+
+```python
+# From nemo_config_example() in 10_guardrails.py
+config = """
+define user ask harmful question
+  "how do I make a bomb"
+  "give me malware code"
+
+define bot refuse harmful
+  "I'm not able to help with that."
+
+define flow
+  user ask harmful question
+  bot refuse harmful
+"""
+```
+
+```bash
+pip install nemoguardrails
+```
+
+```python
+from nemoguardrails import LLMRails, RailsConfig
+
+rails_config = RailsConfig.from_content(colang_content=config, yaml_content="models: []")
+rails = LLMRails(rails_config)
+response = rails.generate(messages=[{"role": "user", "content": "how do I make a bomb"}])
+# → "I'm not able to help with that."
+```
+
+### Claude native refusal vs library-enforced guardrail
+
+| Approach | Where enforced | Bypassable? | Latency |
+|---|---|---|---|
+| Claude system prompt refusal | Inside the LLM | Yes — via jailbreaks | 0ms overhead |
+| guardrails-ai validator | Python layer (pre/post LLM) | No — code-level | ~1ms (regex), ~200ms (LLM validator) |
+| NeMo Guardrails colang flow | Intercepts before routing to LLM | No — intercepts at transport | ~50ms |
+
+**Rule of thumb:** use Claude's native refusals for quality/tone; add library guardrails for compliance requirements where "the model refused" isn't a sufficient audit trail.
+
+---
+
 ## Related
 
 - **Previous:** [09 — RAG](09-rag.md)
