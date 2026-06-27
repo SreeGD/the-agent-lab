@@ -50,9 +50,12 @@ def refine_prompt(
     model: str = BUDGET_MODEL,
 ) -> str:
     """Use Claude to turn a raw voice transcription into a polished image-gen prompt."""
+    # temperature=0 only for Sonnet; Opus 4.x does not support the temperature param
+    extra: dict = {} if model == QUALITY_MODEL else {"temperature": 0}
     response = client.messages.create(
         model=model,
         max_tokens=MAX_TOKENS,
+        **extra,
         messages=[
             {
                 "role": "user",

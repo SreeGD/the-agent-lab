@@ -56,7 +56,7 @@ def sample_temperatures(
 def benchmark_table() -> list[dict[str, Any]]:
     """Return hardcoded benchmark scores for a representative set of models."""
     return [
-        {"model": "claude-opus-4-8", "mmlu": 88.2, "humaneval": 84.9, "lmsys_rank": 2},
+        {"model": "claude-opus-4-7", "mmlu": 88.2, "humaneval": 84.9, "lmsys_rank": 2},
         {"model": "claude-sonnet-4-6", "mmlu": 85.7, "humaneval": 79.1, "lmsys_rank": 5},
         {"model": "gpt-4o", "mmlu": 87.2, "humaneval": 90.2, "lmsys_rank": 3},
         {"model": "llama-3-70b", "mmlu": 82.0, "humaneval": 72.4, "lmsys_rank": 12},

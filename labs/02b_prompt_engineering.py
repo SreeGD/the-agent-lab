@@ -108,6 +108,7 @@ def score_output(task: str, output: str, client: anthropic.Anthropic) -> int:
     response = client.messages.create(
         model=MODEL,
         max_tokens=10,
+        temperature=0,
         messages=[{"role": "user", "content": prompt}],
     )
     try:

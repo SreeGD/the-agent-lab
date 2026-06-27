@@ -122,6 +122,7 @@ def hyde_retrieve(
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=256,
+        temperature=0,
         messages=[{
             "role": "user",
             "content": f"Write a short, factual answer to: {query}",

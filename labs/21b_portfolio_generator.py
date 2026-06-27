@@ -4,7 +4,7 @@ import ast
 import os
 import re
 from pathlib import Path
-from typing import List
+from typing import List, TypedDict
 
 import anthropic
 from dotenv import load_dotenv
@@ -24,10 +24,6 @@ PATTERN_KEYWORDS: dict = {
     "Multi-agent": "supervisor",
     "Tool use": "tool",
 }
-
-
-# TypedDict defined as a plain dict structure; using class form for Python 3.9+ compat
-from typing import TypedDict  # noqa: E402 — stdlib, kept here for readability
 
 
 class LabEntry(TypedDict):

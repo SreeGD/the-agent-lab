@@ -17,7 +17,7 @@ A structured, runnable curriculum for engineers who want to build real agentic A
 | **See the code** | [`labs/`](labs/) — 21+ runnable Python examples |
 | **Read the lessons** | [`labs/lessons/`](labs/lessons/) — per-topic walkthroughs with FAQ |
 | **Conceptual deep dives** | [`labs/LEARNINGS.md`](labs/LEARNINGS.md) |
-| **Full 40-session learning plan** | [`labs/CURRICULUM.md`](labs/CURRICULUM.md) + [`labs/CURRICULUM.csv`](labs/CURRICULUM.csv) |
+| **Full 46-session learning plan** | [`labs/CURRICULUM.md`](labs/CURRICULUM.md) + [`labs/CURRICULUM.csv`](labs/CURRICULUM.csv) |
 | **Run something** | [Quick start](#quick-start) below |
 | **Run the tests** | [Testing](#testing) below |
 
@@ -44,7 +44,7 @@ Each file teaches one concept and runs standalone. Files are prefixed with their
 | `10_guardrails.py` | RAG wrapped in input + output guardrails |
 | `11_production_chatbot.py` | **Capstone** — RAG + memory + caching + guardrails composed |
 
-### Phase 2 — Advanced patterns (sessions 1–6 of the 40-session curriculum)
+### Phase 2 — Advanced patterns (sessions 1–6 of the 46-session curriculum)
 
 | File | Concept |
 |---|---|
@@ -60,7 +60,7 @@ Each file teaches one concept and runs standalone. Files are prefixed with their
 Plus:
 - [`labs/NOTES.md`](labs/NOTES.md) — index into the 17 lesson walkthroughs
 - [`labs/LEARNINGS.md`](labs/LEARNINGS.md) — conceptual deep dives (the LLM Client mental model, prompt caching mechanics, the lifecycle of an LLM call)
-- [`labs/CURRICULUM.md`](labs/CURRICULUM.md) — the 40-session learning plan
+- [`labs/CURRICULUM.md`](labs/CURRICULUM.md) — the 46-session learning plan
 - [`labs/CURRICULUM.csv`](labs/CURRICULUM.csv) — tracker spreadsheet
 
 ---

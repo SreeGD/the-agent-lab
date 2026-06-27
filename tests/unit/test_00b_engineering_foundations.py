@@ -1,21 +1,7 @@
 """Tests for labs/00b_engineering_foundations.py."""
-import importlib.util
-import sys
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-LAB_PATH = Path("/Users/srmallip/projects/AgenticCourse/labs/00b_engineering_foundations.py")
-
-
-def _load_lab() -> object:
-    """Load the lab module fresh, bypassing any cached import."""
-    mod_name = "engineering_foundations_00b"
-    sys.modules.pop(mod_name, None)
-    spec = importlib.util.spec_from_file_location(mod_name, LAB_PATH)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[mod_name] = mod
-    spec.loader.exec_module(mod)
-    return mod
+from tests.conftest import load_lab
 
 
 def test_chat_endpoint_returns_text() -> None:
@@ -25,7 +11,7 @@ def test_chat_endpoint_returns_text() -> None:
         content=[MagicMock(text="Hello from Claude")]
     )
     with patch("anthropic.Anthropic", return_value=mock_client):
-        lab = _load_lab()
+        lab = load_lab("00b_engineering_foundations")
         from fastapi.testclient import TestClient
 
         client = TestClient(lab.create_app())
@@ -37,7 +23,7 @@ def test_chat_endpoint_returns_text() -> None:
 def test_chat_endpoint_rejects_empty_message() -> None:
     """POST /chat with an empty string must return HTTP 422."""
     with patch("anthropic.Anthropic"):
-        lab = _load_lab()
+        lab = load_lab("00b_engineering_foundations")
         from fastapi.testclient import TestClient
 
         client = TestClient(lab.create_app())

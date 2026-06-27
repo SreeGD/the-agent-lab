@@ -1,18 +1,9 @@
 """Tests for minor additions to existing sessions."""
-import importlib.util
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-
-def _load(filename: str):
-    """Load a lab module by filename stem, executing module-level code."""
-    path = Path("/Users/srmallip/projects/AgenticCourse/labs") / f"{filename}.py"
-    spec = importlib.util.spec_from_file_location(filename, path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+from tests.conftest import load_lab
 
 
 # ── Task 8: Guardrails ────────────────────────────────────────────────────────
@@ -22,7 +13,7 @@ def test_guardrails_check_blocks_invalid():
     mock_guard = MagicMock()
     mock_guard.validate.return_value = MagicMock(validation_passed=False, error="blocked")
     with patch("langchain_anthropic.ChatAnthropic"):
-        lab = _load("10_guardrails")
+        lab = load_lab("10_guardrails")
         with pytest.raises(ValueError, match="blocked"):
             lab.guardrails_check("bad input", mock_guard)
 
@@ -32,7 +23,7 @@ def test_guardrails_check_passes_valid():
     mock_guard = MagicMock()
     mock_guard.validate.return_value = MagicMock(validation_passed=True)
     with patch("langchain_anthropic.ChatAnthropic"):
-        lab = _load("10_guardrails")
+        lab = load_lab("10_guardrails")
         result = lab.guardrails_check("valid input", mock_guard)
     assert result == "valid input"
 
@@ -48,7 +39,7 @@ def test_hyde_retrieve_calls_llm_then_vectorstore():
     mock_vectorstore = MagicMock()
     mock_vectorstore.similarity_search.return_value = [MagicMock(page_content="doc")]
     with patch("anthropic.Anthropic", return_value=mock_client):
-        lab = _load("22_hybrid_rag")
+        lab = load_lab("22_hybrid_rag")
         results = lab.hyde_retrieve("What is photosynthesis?", mock_vectorstore, mock_client)
     mock_client.messages.create.assert_called_once()
     mock_vectorstore.similarity_search.assert_called_once()
@@ -64,7 +55,7 @@ def test_trace_with_langfuse_returns_trace_id():
     mock_trace.id = "trace-abc-123"
     mock_langfuse.trace.return_value = mock_trace
     with patch("langchain_anthropic.ChatAnthropic"):
-        lab = _load("25_evaluation")
+        lab = load_lab("25_evaluation")
         trace_id = lab.trace_with_langfuse("test question", "test answer", mock_langfuse)
     assert trace_id == "trace-abc-123"
     mock_langfuse.trace.assert_called_once()
@@ -85,7 +76,7 @@ def test_dispatch_tools_parallel_calls_all():
     mock_block_2.name = "get_current_time"
     mock_block_2.input = {}
     with patch("langchain_anthropic.ChatAnthropic"):
-        lab = _load("03_agent_manual")
+        lab = load_lab("03_agent_manual")
         results = lab.dispatch_tools_parallel([mock_block_1, mock_block_2])
     assert len(results) == 2
     assert all("tool_use_id" in r for r in results)
