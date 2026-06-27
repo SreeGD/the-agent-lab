@@ -11,19 +11,19 @@ calls out gaps, and lists suggested new sessions to fill them.
 
 | # | Roadmap Category | Status | Sessions |
 |---|---|---|---|
-| 01 | LLM Fundamentals | ✅ Covered | S0 (00_llm_fundamentals.py) |
-| 02 | Prompt & Context Engineering | ✅ Covered | S0, S2b (02b_prompt_engineering.py), S4, S5, S1c |
-| 03 | RAG Systems | ✅ Covered | S9, S11 (+HyDE), S12, S13 |
-| 04 | Agentic Systems | ✅ Covered | S1, S1b, S1c, S2, S3 (+parallel tools), S6 |
-| 05 | AI Gateways & Routing | ✅ Covered | S8 (+portkey, Kong), S19 |
-| 06 | Guardrails & Safety | ✅ Covered | S10 (+guardrails-ai, NeMo), S19, S20 |
-| 07 | Observability & Evals | ✅ Covered | S14, S17, S25 (+Langfuse) |
-| 08 | Production AI Engineering | ✅ Covered | S15, S16, S17 |
-| 09 | Software Engineering Essentials | ✅ Covered | S0b (00b_engineering_foundations.py) |
-| 10 | Inference & Deployment | ✅ Covered | S8b (08b_inference_platforms.py), S17 |
-| 11 | Multimodal Integration | ✅ Covered | S9, S9b (09b_voice_image_agents.py) |
-| 12 | Ecosystem Fluency | ✅ Covered | S7b (07b_ecosystem_fluency.py), labs/ollama, labs/openai |
-| 13 | Career Compounding | ✅ Covered | S21b (21b_portfolio_generator.py) |
+| 01 | LLM Fundamentals | ✅ Covered | [S00 LLM Fundamentals](00-llm-fundamentals.md) |
+| 02 | Prompt & Context Engineering | ✅ Covered | [S00](00-llm-fundamentals.md), [S02b Prompt Engineering](02b-prompt-engineering.md), [S04 Prompt Caching](04-prompt-caching.md), [S05 Structured Output](05-structured-output.md), [S1c Context Assembly](1c-context-assembly.md) |
+| 03 | RAG Systems | ✅ Covered | [S09 RAG](09-rag.md), [S22 Hybrid RAG +HyDE](22-hybrid-rag.md), [S23 GraphRAG](23-graph-rag.md), [S24 Corrective RAG](24-corrective-rag.md) |
+| 04 | Agentic Systems | ✅ Covered | [S12 MCP](12-mcp.md), [S12b A2A](12b-a2a-protocol.md), [S1c Context Assembly](1c-context-assembly.md), [S13 Reflection](13-reflection-plan-execute.md), [S14 Multi-agent](14-multi-agent-ltm.md), [S17 Claude Skills](17-claude-skills.md) |
+| 05 | AI Gateways & Routing | ✅ Covered | [S19 AI Gateway +portkey +Kong](19-ai-gateway.md) |
+| 06 | Guardrails & Safety | ✅ Covered | [S10 Guardrails +guardrails-ai +NeMo](10-guardrails.md), [S31 Red-teaming](31-red-teaming.md), [S32 Governance](32-governance.md) |
+| 07 | Observability & Evals | ✅ Covered | [S25 Evaluation +Langfuse](25-evaluation.md), [S28 Production Deploy](28-production-deploy.md) |
+| 08 | Production AI Engineering | ✅ Covered | [S26 Cost Optimization](26-cost-optimization.md), [S27 Streaming](27-streaming.md), [S28 Production Deploy](28-production-deploy.md) |
+| 09 | Software Engineering Essentials | ✅ Covered | [S00b Engineering Foundations](00b-engineering-foundations.md) |
+| 10 | Inference & Deployment | ✅ Covered | [S08b Inference Platforms](08b-inference-platforms.md), [S28 Production Deploy](28-production-deploy.md) |
+| 11 | Multimodal Integration | ✅ Covered | [S20 Files & Document AI](20-files-document-ai.md), [S09b Voice & Image Agents](09b-voice-image-agents.md) |
+| 12 | Ecosystem Fluency | ✅ Covered | [S07b Ecosystem Fluency](07b-ecosystem-fluency.md) |
+| 13 | Career Compounding | ✅ Covered | [S21b Portfolio Generator](21b-portfolio-generator.md) |
 
 ---
 
@@ -34,17 +34,11 @@ calls out gaps, and lists suggested new sessions to fill them.
 Reasoning models, Benchmarks
 
 **Course coverage:**
-- `labs/lessons/llm-api-internals.md` — reference doc, not a lab session
+- [`llm-api-internals.md`](llm-api-internals.md) — reference doc, not a lab session
 - `labs/01_model_wrapper.py` — basic model invocation (no theory)
+- [Session 00 — LLM Fundamentals](00-llm-fundamentals.md) ✅
 
-**Gap:** No session teaches transformers, tokenization internals, sampling
-strategies (temperature, top-p), or how to read model benchmarks.
-
-**Suggested session:** New Session 0 — *LLM Internals & Model Selection*
-- Tokens, context windows, sampling parameters
-- Benchmark reading (MMLU, HumanEval, LMSYS Arena)
-- Model family comparison (Claude, GPT, Gemini, open-weight)
-- File: `00_llm_fundamentals.py`
+**Status:** ✅ Covered by [Session 00 — LLM Fundamentals](00-llm-fundamentals.md)
 
 ---
 
@@ -53,19 +47,12 @@ strategies (temperature, top-p), or how to read model benchmarks.
 Prompt caching, Structured outputs, Extended thinking
 
 **Course coverage:**
-- Session 4 → `04_prompt_caching.py` — prompt caching ✅
-- Session 5 → `05_structured_output.py` — structured outputs ✅
-- Session 1c → `1c_context_assembly.py` — context window composition ✅
+- Session 4 → [`04-prompt-caching.md`](04-prompt-caching.md) — prompt caching ✅
+- Session 5 → [`05-structured-output.md`](05-structured-output.md) — structured outputs ✅
+- Session 1c → [`1c-context-assembly.md`](1c-context-assembly.md) — context window composition ✅
+- [Session 02b — Prompt Engineering Deep Dive](02b-prompt-engineering.md) ✅
 
-**Gap:** No dedicated session on system prompt design, few-shot examples,
-Chain-of-Thought prompting, XML structuring for Claude, or extended thinking.
-
-**Suggested session:** New Session 2.5 — *Prompt Engineering Deep Dive*
-- System prompt anatomy for Claude
-- Few-shot + CoT patterns
-- XML structuring (Claude-native)
-- Extended thinking (claude-opus-4-7 budget_tokens)
-- File: `02b_prompt_engineering.py`
+**Status:** ✅ Covered
 
 ---
 
@@ -74,16 +61,13 @@ Chain-of-Thought prompting, XML structuring for Claude, or extended thinking.
 HyDE, Ragas
 
 **Course coverage:**
-- Session 9 → Files & Document AI, multimodal RAG ✅
-- Session 11 → Hybrid RAG (dense + sparse + RRF) ✅
-- Session 12 → GraphRAG ✅
-- Session 13 → Corrective RAG (CRAG) ✅
-- Session 14 → Ragas evaluation ✅
+- Session 9 → [`09-rag.md`](09-rag.md) — Files & Document AI, multimodal RAG ✅
+- Session 11 → [`22-hybrid-rag.md`](22-hybrid-rag.md) — Hybrid RAG (dense + sparse + RRF) ✅
+- Session 12 → [`23-graph-rag.md`](23-graph-rag.md) — GraphRAG ✅
+- Session 13 → [`24-corrective-rag.md`](24-corrective-rag.md) — Corrective RAG (CRAG) ✅
+- Session 14 → [`25-evaluation.md`](25-evaluation.md) — Ragas evaluation ✅
 
-**Gap:** HyDE (Hypothetical Document Embeddings) and Agentic RAG not explicitly
-covered as named patterns (though CRAG approaches it).
-
-**Suggested addition:** Add HyDE to Session 11 or 13 as a retrieval variant.
+**Status:** ✅ HyDE added to [22-hybrid-rag.md](22-hybrid-rag.md)
 
 ---
 
@@ -92,19 +76,15 @@ covered as named patterns (though CRAG approaches it).
 Computer use, Coding agents
 
 **Course coverage:**
-- Session 1 → MCP ✅
-- Session 1b → A2A Protocol ✅
-- Session 1c → Context Assembly ✅
-- Session 2 → Reflection + Plan-and-Execute (ReAct) ✅
-- Session 3 → Multi-agent + Long-term/Episodic Memory ✅
-- Session 6 → Claude Skills (SKILL.md) ✅
+- Session 1 → [`12-mcp.md`](12-mcp.md) — MCP ✅
+- Session 1b → [`12b-a2a-protocol.md`](12b-a2a-protocol.md) — A2A Protocol ✅
+- Session 1c → [`1c-context-assembly.md`](1c-context-assembly.md) — Context Assembly ✅
+- Session 2 → [`13-reflection-plan-execute.md`](13-reflection-plan-execute.md) — Reflection + Plan-and-Execute (ReAct) ✅
+- Session 3 → [`14-multi-agent-ltm.md`](14-multi-agent-ltm.md) — Multi-agent + Long-term/Episodic Memory ✅
+- Session 6 → [`17-claude-skills.md`](17-claude-skills.md) — Claude Skills (SKILL.md) ✅
 - `labs/coding_agent/` → Coding agent example ✅
 
-**Gap:** Computer use (Anthropic Computer Use API) is in Track M Session 42
-but not in the core agentic track.
-
-**Suggested:** Promote Session 42 (Browser Automation) to Track A or add a
-cross-reference so core-track learners discover it.
+**Status:** ✅ Parallel tool calls added to [03-agent-tool-loop.md](03-agent-tool-loop.md)
 
 ---
 
@@ -113,9 +93,9 @@ cross-reference so core-track learners discover it.
 Multi-provider abstraction (LiteLLM, OpenRouter, portkey, Kong)
 
 **Course coverage:**
-- Session 8 → AI Gateway (LiteLLM / OpenRouter / Vercel AI Gateway) ✅
+- Session 8 → [`19-ai-gateway.md`](19-ai-gateway.md) — AI Gateway (LiteLLM / OpenRouter / Vercel AI Gateway) ✅
 
-**Coverage is solid.** Add portkey and Kong as tool mentions if not present.
+**Status:** ✅ portkey and Kong added to [19-ai-gateway.md](19-ai-gateway.md)
 
 ---
 
@@ -125,15 +105,11 @@ PII redaction, Jailbreak prevention, Hallucination detection
 Tools: Guardrails AI, NeMo Guardrails
 
 **Course coverage:**
-- Session 10 (`10-guardrails.md`) → guardrails fundamentals ✅
-- Session 19 → Red-teaming & Compliance ✅
-- Session 20 → AI Governance & Audit ✅
+- Session 10 → [`10-guardrails.md`](10-guardrails.md) — guardrails fundamentals ✅
+- Session 19 → [`31-red-teaming.md`](31-red-teaming.md) — Red-teaming & Compliance ✅
+- Session 20 → [`32-governance.md`](32-governance.md) — AI Governance & Audit ✅
 
-**Gap:** No hands-on use of Guardrails AI library or NeMo Guardrails SDK.
-Session 10 uses Claude's own mechanisms.
-
-**Suggested addition:** Extend Session 10 or add Session 10b — integrate
-`guardrails-ai` and `nemo_guardrails` libraries alongside Claude guardrails.
+**Status:** ✅ guardrails-ai + NeMo Guardrails added to [10-guardrails.md](10-guardrails.md)
 
 ---
 
@@ -143,14 +119,10 @@ Drift detection
 Tools: LangSmith, LangWatch, arize phoenix, Helicone, Langfuse
 
 **Course coverage:**
-- Session 14 → Evaluation (Ragas + LangSmith) ✅
-- Session 17 → Production Deployment + Observability ✅
+- Session 14 → [`25-evaluation.md`](25-evaluation.md) — Evaluation (Ragas + LangSmith) ✅
+- Session 17 → [`28-production-deploy.md`](28-production-deploy.md) — Production Deployment + Observability ✅
 
-**Gap:** LangWatch, Arize Phoenix, Helicone, Langfuse not covered.
-Drift detection not explicitly taught.
-
-**Suggested addition:** Extend Session 14 to include one additional observability
-platform (Langfuse is open-source, easy to self-host).
+**Status:** ✅ Langfuse added to [25-evaluation.md](25-evaluation.md)
 
 ---
 
@@ -160,14 +132,11 @@ Semantic caching, Cost optimization, Latency budgets
 Tools: SSE, WebSockets
 
 **Course coverage:**
-- Session 15 → Cost Optimization ✅
-- Session 16 → Streaming + Web UI (SSE) ✅
-- Session 17 → Production Deployment ✅
+- Session 15 → [`26-cost-optimization.md`](26-cost-optimization.md) — Cost Optimization ✅
+- Session 16 → [`27-streaming.md`](27-streaming.md) — Streaming + Web UI (SSE) ✅
+- Session 17 → [`28-production-deploy.md`](28-production-deploy.md) — Production Deployment ✅
 
-**Gap:** Parallel tool calls and rate-limit retry logic not dedicated topics
-(though used in multi-agent sessions). WebSockets covered in Session 16.
-
-**Coverage is good.** Add parallel tool calls example to Session 3 or 15.
+**Status:** ✅ Parallel tool calls added to [03-agent-tool-loop.md](03-agent-tool-loop.md)
 
 ---
 
@@ -178,15 +147,7 @@ Tools: SSE, WebSockets
 - `Dockerfile`, `docker-compose.yml` appear in Session 17 artifacts
 - pgvector used in RAG sessions as a dependency
 
-**Gap:** Learners without FastAPI/Docker background have no on-ramp.
-
-**Suggested session:** New Session 0b — *Engineering Foundations for AI*
-(optional, for non-backend engineers)
-- Async Python patterns for LLM calls
-- FastAPI route + Pydantic model for an AI endpoint
-- Docker + docker-compose for a RAG stack
-- Postgres + pgvector setup
-- File: `00b_engineering_foundations.py`
+**Status:** ✅ Covered by [Session 00b — Engineering Foundations](00b-engineering-foundations.md)
 
 ---
 
@@ -196,20 +157,11 @@ Tools: together.ai, replicate, fireworks, groq, cerebras, vLLM, ollama,
 AWS Bedrock, Vertex AI, Azure AI
 
 **Course coverage:**
-- Session 17 → deployment (Fly.io, Docker) ✅
+- Session 17 → [`28-production-deploy.md`](28-production-deploy.md) — deployment (Fly.io, Docker) ✅
 - `labs/ollama/` → local Ollama inference ✅
 - Session 8 → multi-provider via LiteLLM (partial) 🟡
 
-**Gap:** No dedicated session on inference platforms (together.ai, Replicate,
-Fireworks, groq, cerebras), vLLM self-hosting, or managed cloud AI
-(Bedrock, Vertex AI, Azure AI).
-
-**Suggested session:** New Session 8b — *Inference Platforms & Self-Hosting*
-- together.ai / groq / Fireworks API comparison
-- vLLM local deployment
-- AWS Bedrock vs Vertex AI vs Azure AI trade-offs
-- Cost/latency benchmarks
-- File: `08b_inference_platforms.py`
+**Status:** ✅ Covered by [Session 08b — Inference Platforms](08b-inference-platforms.md)
 
 ---
 
@@ -218,17 +170,9 @@ Fireworks, groq, cerebras), vLLM self-hosting, or managed cloud AI
 Tools: NanoBanana, Flux, Eleven Labs, DALL-E, Sora, Veo, Runway
 
 **Course coverage:**
-- Session 9 → Vision + Document AI (Claude native, Files API, Citations API) ✅
+- Session 9 → [`20-files-document-ai.md`](20-files-document-ai.md) — Vision + Document AI (Claude native, Files API, Citations API) ✅
 
-**Gap:** Image generation, voice agents (TTS/STT), and video generation
-are not covered. These require third-party APIs (Replicate for Flux/SDXL,
-ElevenLabs for TTS, Whisper for STT).
-
-**Suggested session:** New Session 9b — *Voice & Image Generation Agents*
-- Whisper STT → Claude reasoning → ElevenLabs TTS pipeline
-- Image generation via Replicate (Flux/SDXL) with Claude as director
-- Document AI: extend Session 9 with multimodal RAG pipeline
-- File: `09b_voice_image_agents.py`
+**Status:** ✅ Covered by [Session 09b — Voice & Image Agents](09b-voice-image-agents.md)
 
 ---
 
@@ -240,16 +184,7 @@ Tools: Llama, Qwen, DeepSeek, Mistral, Kimi, HuggingFace, arXiv
 - `labs/ollama/` → runs Llama/Mistral locally ✅ (not in CURRICULUM.csv)
 - `labs/openai/` → OpenAI parallel track ✅ (not in CURRICULUM.csv)
 
-**Gap:** No session on reading papers (arXiv), using HuggingFace Hub
-(model cards, inference API, datasets), or interpreting benchmarks.
-Ollama and OpenAI tracks not surfaced in curriculum.
-
-**Suggested session:** New Session 7b — *Open-Weight Models & HuggingFace Ecosystem*
-- HuggingFace Hub: model cards, datasets, Spaces
-- Running Llama/Mistral/Qwen via Ollama (link to labs/ollama/)
-- Reading arXiv papers efficiently (abstract → method → results)
-- Interpreting benchmarks: MMLU, HumanEval, LMSYS Arena, MTEB
-- File: `07b_ecosystem_fluency.py`
+**Status:** ✅ Covered by [Session 07b — Ecosystem Fluency](07b-ecosystem-fluency.md)
 
 ---
 
@@ -260,13 +195,7 @@ Platforms: GitHub, LinkedIn, X (Twitter), Substack
 
 **Course coverage:** None.
 
-**Suggested session:** New Session 21b — *Shipping & Building in Public*
-(lightweight, no code lab)
-- How to document and open-source a course project
-- Writing a technical post about a system you built
-- GitHub README → LinkedIn post → Substack draft pipeline
-- Contributing to open-source LLM tooling
-- File: `21b_career_compounding.md` (essay-style, no code)
+**Status:** ✅ Covered by [Session 21b — Portfolio Generator](21b-portfolio-generator.md)
 
 ---
 
@@ -274,23 +203,23 @@ Platforms: GitHub, LinkedIn, X (Twitter), Substack
 
 | New Session | Title | Fills Gap |
 |---|---|---|
-| 00 | LLM Internals & Model Selection | Category 01 |
-| 00b | Engineering Foundations for AI | Category 09 |
-| 02b | Prompt Engineering Deep Dive | Category 02 |
-| 07b | Open-Weight Models & HuggingFace | Category 12 |
-| 08b | Inference Platforms & Self-Hosting | Category 10 |
-| 09b | Voice & Image Generation Agents | Category 11 |
-| 21b | Shipping & Building in Public | Category 13 |
+| [00](00-llm-fundamentals.md) | LLM Internals & Model Selection | Category 01 |
+| [00b](00b-engineering-foundations.md) | Engineering Foundations for AI | Category 09 |
+| [02b](02b-prompt-engineering.md) | Prompt Engineering Deep Dive | Category 02 |
+| [07b](07b-ecosystem-fluency.md) | Open-Weight Models & HuggingFace | Category 12 |
+| [08b](08b-inference-platforms.md) | Inference Platforms & Self-Hosting | Category 10 |
+| [09b](09b-voice-image-agents.md) | Voice & Image Generation Agents | Category 11 |
+| [21b](21b-portfolio-generator.md) | Shipping & Building in Public | Category 13 |
 
 ## Minor Additions (extend existing sessions)
 
 | Session | Addition |
 |---|---|
-| S10 or S10b | Integrate `guardrails-ai` and `nemo_guardrails` libraries |
-| S11 or S13 | Add HyDE retrieval pattern |
-| S14 | Add Langfuse as second observability platform |
-| S3 or S15 | Add parallel tool calls example |
-| S8 | Add portkey and Kong as gateway mentions |
+| [S10](10-guardrails.md) or S10b | Integrate `guardrails-ai` and `nemo_guardrails` libraries |
+| [S22](22-hybrid-rag.md) | Add HyDE retrieval pattern |
+| [S25](25-evaluation.md) | Add Langfuse as second observability platform |
+| [S03](03-agent-tool-loop.md) or S15 | Add parallel tool calls example |
+| [S19](19-ai-gateway.md) | Add portkey and Kong as gateway mentions |
 
 ## Regrouped Track Structure (aligned to 2026 Roadmap)
 
