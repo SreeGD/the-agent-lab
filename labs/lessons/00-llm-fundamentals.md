@@ -120,7 +120,7 @@ The agentic version handles edge cases, ambiguity, and linguistic variation that
 
 ## The 7 Building Blocks
 
-Every LLM call — from a two-word query to a 50-page document analysis — flows through the same seven mechanisms. They are not independent; each one feeds the next. The diagram below shows how they interlock. The worked example beneath it traces a single real prompt through all seven so you see them as a system before zooming into each.
+Every LLM call flows through seven mechanisms — not independently but chained. The diagram below shows how they interlock; the worked example beneath traces one real prompt through all seven as a system before zooming into each.
 
 ```mermaid
 flowchart TD
@@ -169,20 +169,19 @@ flowchart TD
 
 | Block | What happens | Why it matters |
 |---|---|---|
-| **① Transformer** | 48 attention layers read every token simultaneously — understanding that "summarize" = extract, "3 bullets" = format, "quarterly" = business domain | Depth gives reasoning; width gives capacity. More layers = better nuance. |
-| **② Tokenization** | "Summarize this quarterly report in 3 bullet points" → 11 tokens. The 40-page PDF → ~32 000 tokens. Code or tables cost 2–3× more tokens per character than prose. | Token count = API cost + latency. Knowing this lets you budget intelligently. |
-| **③ Context Window** | 32 011 tokens total fits inside a 200 K window (16%). The model can attend to the entire report in one call — no chunking needed. | If you exceed the window, you need RAG. Knowing the fill % tells you which path to take. |
-| **④ Sampling** | `temperature=0` → greedy decoding → same three bullets on every run. No randomness needed for business document extraction. | Wrong temperature = unpredictable outputs. Use 0 for extraction, 0.7+ for creative tasks. |
-| **⑤ Reasoning Models** | Optional: `budget_tokens=8000` lets the model trace revenue figures before writing. Costs more but catches errors a single pass misses. | Use for high-stakes analysis. Skip for simple summaries — it's slower and pricier. |
-| **⑥ Benchmarks** | MMLU measures whether the model knows finance; LMSYS Arena measures whether humans prefer its summaries. No single score = "good at your task." | Always run your own eval on your own data before committing to a model. |
-| **⑦ Model Family** | Haiku: fast draft at low cost. Sonnet: polished, production-ready. Opus: deep analysis, cross-referencing figures. Start with Sonnet; escalate only if Sonnet fails your eval. | Over-engineering to Opus costs 10× more. Under-engineering to Haiku misses nuance. |
+| **① Transformer** | 48 attention layers read every token simultaneously — understanding "summarize" = extract, "3 bullets" = format, "quarterly" = finance domain | Depth gives reasoning; width gives capacity. More layers = better nuance. |
+| **② Tokenization** | "Summarize this quarterly report in 3 bullet points" → 11 tokens. The 40-page PDF → ~32 000 tokens. Code costs 2–3× more tokens per character than prose. | Token count = API cost + latency. Knowing this lets you budget intelligently. |
+| **③ Context Window** | 32 011 tokens fits inside a 200 K window (16%). The model attends to the entire report in one call — no chunking needed. | If you exceed the window, you need RAG. Knowing the fill % tells you which path to take. |
+| **④ Sampling** | `temperature=0` → greedy decoding → same bullets every run. No randomness for business document extraction. | Wrong temperature = unpredictable outputs. Use 0 for extraction, 0.7+ for creative tasks. |
+| **⑤ Reasoning Models** | Optional: `budget_tokens=8000` lets the model trace revenue figures before writing. Catches errors a single pass misses. | Use for high-stakes analysis. Skip for simple summaries — it's slower and pricier. |
+| **⑥ Benchmarks** | MMLU measures finance knowledge; LMSYS Arena measures whether humans prefer its summaries. No single score = "good at your task." | Always run your own eval on your own data before committing to a model. |
+| **⑦ Model Family** | Haiku: fast draft at low cost. Sonnet: polished, production-ready. Opus: deep analysis. Start with Sonnet; escalate only if Sonnet fails your eval. | Over-engineering to Opus costs 10×. Under-engineering to Haiku misses nuance. |
 
 ---
 
 ### 1. Transformers
 
-A transformer predicts the next token by attending to all prior tokens simultaneously.
-The core operation is self-attention.
+A transformer predicts the next token by attending to all prior tokens simultaneously. The core operation is **self-attention**.
 
 ```
 Input tokens:  [T1]  [T2]  [T3]  [T4]
@@ -196,37 +195,70 @@ Input tokens:  [T1]  [T2]  [T3]  [T4]
               [Logits] -- softmax --> P(next token)
 ```
 
-Key insight: each layer adds a delta to the residual stream. Depth = more reasoning.
-Width = more capacity per token. Both scale log-linearly with capability.
+Key insight: each layer adds a delta to the residual stream. Depth = more reasoning. Width = more capacity per token.
+
+**The Query / Key / Value framework**
+
+Every token becomes three vectors — think of a library search:
+
+- **Query (Q):** what this token is *looking for*. ("I'm 'it' — what do I refer to?")
+- **Key (K):** what each token *advertises*. ("I'm 'animal', a noun, an entity.")
+- **Value (V):** the actual *content* a token contributes if deemed relevant.
+
+```
+Attention(Q, K, V) = softmax(QKᵀ / √dₖ) · V
+```
+
+- `QKᵀ` — every Query dotted with every Key (the N² step)
+- `/ √dₖ` — scaling to keep numbers stable
+- `softmax(...)` — turns scores into weights summing to 1
+- `· V` — weighted blend of values
+
+Transformers run this **many times in parallel** (multi-head attention — e.g. 32–96 heads), each learning different relationships: subject–verb links, pronoun references, long-range topics. Their outputs are combined for a rich, multi-faceted view.
+
+**Causal masking:** during generation, each token is blocked from "seeing the future," so it predicts the next word using only what came before. This is why these models are called *autoregressive*.
+
+> "Attention Is All You Need" (Vaswani et al., 2017): parallel processing + direct long-range connections made training giant models practical. Every modern LLM is built on this.
 
 ---
 
 ### 2. Tokenization (BPE)
 
-Tokens are sub-word units learned by Byte-Pair Encoding (BPE).
-Starting from individual bytes, the most frequent adjacent pair is merged repeatedly.
+Tokens are **subword chunks** learned via Byte-Pair Encoding (BPE) — the sweet spot between two flawed extremes:
+
+| Approach | Vocabulary size | Sequence length | Problem |
+|---|---|---|---|
+| Whole words | Millions | Shortest | Can't handle unknown words |
+| Characters | ~100 | Longest | Quadratic cost explodes; must learn spelling first |
+| **Tokens (subwords)** | **30k–100k** | **Balanced** | **Nothing is ever out-of-vocabulary** |
+
+Rare words split into known pieces: `unhappiness` → `un` + `happiness`. Common words ("the", "is") become single tokens. Subwords often align with morphemes (prefixes, roots, suffixes), so the model reuses patterns.
 
 ```
 Step 0:  h e l l o _ w o r l d
-Step 1:  h e ll o _ w o r l d    (merge: l+l -> ll)
-Step 2:  h e ll o _ w or l d     (merge: o+r -> or)
-Step 3:  h e ll o _ wor l d      (merge: w+or -> wor)
-Step 4:  h e ll o _ world        (merge: wor+l+d -> world)
+Step 1:  h e ll o _ w o r l d    (merge: l+l → ll)
+Step 2:  h e ll o _ w or l d     (merge: o+r → or)
+Step 3:  h e ll o _ wor l d      (merge: w+or → wor)
+Step 4:  h e ll o _ world        (merge: wor+l+d → world)
 Final:   [h] [e] [ll] [o] [_] [world]   = 6 tokens
 ```
 
-Rule of thumb: 1 token ≈ 4 English characters ≈ 0.75 words.
-Code is denser — a Python line can cost 3-5× more tokens than prose.
-
-The lab function `visualize_tokens()` approximates boundaries at every 4 chars and
-calls `count_tokens` to get the exact API count.
+Rule of thumb: 1 token ≈ 4 English characters ≈ 0.75 words. Code is denser — a Python line can cost 2–5× more tokens than prose.
 
 ---
 
 ### 3. Context Window
 
-The context window is the maximum number of tokens the model can attend to at once.
-KV-cache memory grows quadratically with sequence length:
+The context window is the maximum number of tokens the model can attend to at once. Attention has an **O(N²) cost** — every token looks at every other token:
+
+```
+1 000 tokens  →        1 M comparisons
+2 000 tokens  →        4 M  (double length → 4× cost)
+10 000 tokens →      100 M
+32 000 tokens →  ~1 000 M
+```
+
+Double the sequence length: cost quadruples. This is why character encoding loses to tokens — not just "more units" but *quadratically more compute* for the same text.
 
 ```
 Seq length    KV memory (relative)
@@ -237,7 +269,7 @@ Seq length    KV memory (relative)
  200 000         40 000 x
 ```
 
-Practical limits:
+Practical implications:
 - Longer contexts cost more per token (prefill compute).
 - Retrieval/RAG is cheaper than stuffing the full corpus.
 - `fill_percentage()` shows how much of the window your text consumes.
@@ -246,8 +278,7 @@ Practical limits:
 
 ### 4. Sampling — Temperature & Top-p
 
-After the model produces a probability distribution over the vocabulary,
-sampling controls how you pick the next token.
+After the model produces a probability distribution over the vocabulary, sampling controls how you pick the next token.
 
 ```
 Vocab logits (simplified, 4 tokens):
@@ -258,26 +289,30 @@ Vocab logits (simplified, 4 tokens):
 
 temp=0  (greedy):  always pick "cat"  (argmax)
 
-temp=0.7:          softmax({3.2/0.7, 2.8/0.7, ...})
-                   "cat" ~60%  "dog" ~35%  "the" ~4%  "xyz" ~1%
+temp=0.7:  "cat" ~60%  "dog" ~35%  "the" ~4%  "xyz" ~1%
 
-temp=1.5:          softmax({3.2/1.5, 2.8/1.5, ...})
-                   "cat" ~38%  "dog" ~34%  "the" ~19%  "xyz" ~9%
+temp=1.5:  "cat" ~38%  "dog" ~34%  "the" ~19%  "xyz" ~9%
 ```
 
-Top-p (nucleus sampling) further clips the tail: keep only the tokens whose
-cumulative probability reaches p (e.g., 0.9) and renormalize.
+Top-p (nucleus sampling) further clips the tail: keep only the tokens whose cumulative probability reaches p and renormalize.
 
-Use temperature=0 for deterministic tasks (extraction, classification).
-Use temperature=0.7–1.0 for creative/diverse tasks.
-Never use temperature on claude-opus-4-7/4-8 (deprecated in Opus 4.x).
+**Why outputs aren't fully deterministic** — even at temperature=0:
+
+| Source | Deterministic? | Why |
+|---|---|---|
+| Core math (tokens → probabilities) | Yes | Frozen weights, fixed arithmetic |
+| Sampling / temperature | No (by design) | Weighted dice for natural text |
+| Probabilistic knowledge | No (by nature) | Facts reconstructed, not stored |
+| Context-dependence | No | Output conditioned on the window |
+| Hardware/floating-point | Mostly yes | Parallel ordering, rounding |
+
+Use `temperature=0` for deterministic tasks (extraction, classification). Use `temperature=0.7–1.0` for creative/diverse tasks. Never use temperature on `claude-opus-4-7/4-8` (deprecated in Opus 4.x).
 
 ---
 
 ### 5. Reasoning Models
 
-Reasoning models (o1, Claude 3.7/3.5 with extended thinking) spend extra tokens
-on an internal chain-of-thought before producing the visible answer.
+Reasoning models spend extra tokens on an internal chain-of-thought before producing the visible answer.
 
 ```
 User prompt
@@ -293,6 +328,8 @@ User prompt
     v
 [Visible answer]  <- what the user sees
 ```
+
+Chain-of-thought is not a special mode or a new loop — it is simply **the content of the token-generation loop when the early tokens are reasoning**. Because each reasoning token conditions the next, the model "talks itself into" a better answer: once it has generated "It depends on your finances and the type of farming," those words are now in its context, making the actual factors the high-probability next tokens.
 
 Trade-offs:
 - Higher accuracy on multi-step math, code, and logic.
@@ -339,6 +376,48 @@ Selection heuristic:
 
 ---
 
+## Where Knowledge Lives — Parameters
+
+A **parameter** is just a number — a weight. "70 billion parameters" means 70 billion numbers. Their exact settings *are* the model's knowledge.
+
+```
+Concept         Role                    Analogy
+─────────────────────────────────────────────────────
+Vocabulary      Full set of known pieces  The model's alphabet
+Token           One piece                 A letter/chunk
+Context         Tokens held now           RAM / working memory
+Attention       Relates tokens            The reasoning act
+Parameters      Permanent knowledge       The hard drive
+```
+
+**How knowledge is stored**
+
+There is no filing cabinet with "France → capital → Paris." Knowledge lives as *the strength of connections between numbers*. A word is a vector; the model nudges these vectors during training until semantic relationships fall out as arithmetic:
+
+```
+king − man + woman
+  royalty: 0.9 − 0.1 + 0.1 = 0.9
+  male:    0.9 − 0.9 + 0.0 = 0.0
+  female:  0.0 − 0.0 + 0.9 = 0.9
+  = (0.9, 0.0, 0.9)  →  queen
+```
+
+Nobody told it "king is royal and male" — it emerged from getting better at next-token prediction. Knowledge is **distributed** (no single parameter holds "Paris"; it's smeared across thousands of weights) and **reconstructed** on every call (not retrieved from a lookup table).
+
+**Training vs. inference**
+
+| | Training | Inference |
+|---|---|---|
+| Parameters change? | Yes — nudged by backprop | No — completely frozen |
+| What's happening | Learning from errors | Applying what was learned |
+| Frequency | Once, beforehand | Every message |
+| Cost | Enormous (months, millions $) | Tiny (milliseconds) |
+
+This explains: why a model doesn't learn from your chat (weights frozen), why it has a knowledge cutoff (weights froze at a date), and why bigger models often know more (more knobs = more capacity).
+
+> Context is RAM (temporary, this session). Parameters are the hard drive (permanent, learned once).
+
+---
 ## Run It
 
 ```bash
@@ -397,6 +476,7 @@ for current numbers.
 ## Related
 
 - Session 01 — Model Wrapper & LangChain: `labs/lessons/01-model-wrapper.md`
+- Session 00c — From One Token to an Agent: `labs/lessons/00c-agent-loop.md`
 - Session 02 — LCEL Chain Composition: `labs/lessons/02-lcel-composition.md`
 - Anthropic token counting docs: https://docs.anthropic.com/en/docs/build-with-claude/token-counting
 - LMSYS Chatbot Arena: https://chat.lmsys.org
