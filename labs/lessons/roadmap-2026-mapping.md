@@ -11,19 +11,19 @@ calls out gaps, and lists suggested new sessions to fill them.
 
 | # | Roadmap Category | Status | Sessions |
 |---|---|---|---|
-| 01 | LLM Fundamentals | ⚠️ Gap | reference only |
-| 02 | Prompt & Context Engineering | 🟡 Partial | S4, S5, S1c |
-| 03 | RAG Systems | ✅ Covered | S9, S11, S12, S13 |
-| 04 | Agentic Systems | ✅ Covered | S1, S1b, S1c, S2, S3, S6 |
-| 05 | AI Gateways & Routing | ✅ Covered | S8 |
-| 06 | Guardrails & Safety | ✅ Covered | S10, S19, S20 |
-| 07 | Observability & Evals | ✅ Covered | S14, S17 |
+| 01 | LLM Fundamentals | ✅ Covered | S0 (00_llm_fundamentals.py) |
+| 02 | Prompt & Context Engineering | ✅ Covered | S0, S2b (02b_prompt_engineering.py), S4, S5, S1c |
+| 03 | RAG Systems | ✅ Covered | S9, S11 (+HyDE), S12, S13 |
+| 04 | Agentic Systems | ✅ Covered | S1, S1b, S1c, S2, S3 (+parallel tools), S6 |
+| 05 | AI Gateways & Routing | ✅ Covered | S8 (+portkey, Kong), S19 |
+| 06 | Guardrails & Safety | ✅ Covered | S10 (+guardrails-ai, NeMo), S19, S20 |
+| 07 | Observability & Evals | ✅ Covered | S14, S17, S25 (+Langfuse) |
 | 08 | Production AI Engineering | ✅ Covered | S15, S16, S17 |
-| 09 | Software Engineering Essentials | ⚠️ Gap | assumed background |
-| 10 | Inference & Deployment | 🟡 Partial | S17 (deploy only) |
-| 11 | Multimodal Integration | 🟡 Partial | S9 (vision/docs only) |
-| 12 | Ecosystem Fluency | ⚠️ Gap | labs/ollama only |
-| 13 | Career Compounding | ⚠️ Gap | none |
+| 09 | Software Engineering Essentials | ✅ Covered | S0b (00b_engineering_foundations.py) |
+| 10 | Inference & Deployment | ✅ Covered | S8b (08b_inference_platforms.py), S17 |
+| 11 | Multimodal Integration | ✅ Covered | S9, S9b (09b_voice_image_agents.py) |
+| 12 | Ecosystem Fluency | ✅ Covered | S7b (07b_ecosystem_fluency.py), labs/ollama, labs/openai |
+| 13 | Career Compounding | ✅ Covered | S21b (21b_portfolio_generator.py) |
 
 ---
 
@@ -346,3 +346,25 @@ Track H–L — Verticals (Healthcare, Agritech, Finance, Vidya Karana, Family A
 
 Track M — Claude Code Mastery (Optional)
 ```
+
+---
+
+## Implementation Complete
+
+As of 2026-06-27, all 13 roadmap categories are covered by this curriculum.
+
+**New sessions added:**
+- Session 00: LLM Internals & Model Selection
+- Session 00b: Engineering Foundations for AI (optional on-ramp)
+- Session 02b: Prompt Engineering Deep Dive
+- Session 07b: Open-Weight Models & HuggingFace Ecosystem
+- Session 08b: Inference Platforms & Self-Hosting
+- Session 09b: Voice & Image Generation Agents
+- Session 21b: Portfolio Generator (Shipping & Building in Public)
+
+**Minor additions to existing sessions:**
+- Session 10: guardrails-ai + NeMo Guardrails integration
+- Session 22: HyDE (Hypothetical Document Embeddings) retrieval pattern
+- Session 25: Langfuse observability tracing
+- Session 03: Parallel tool call dispatch with asyncio
+- Session 19: portkey + Kong API Gateway mentions
