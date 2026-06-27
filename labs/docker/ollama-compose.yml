@@ -1,0 +1,30 @@
+# Ollama self-hosting — OpenAI-compatible inference on localhost:11434
+# Usage:
+#   docker compose -f labs/docker/ollama-compose.yml up -d
+#   docker compose -f labs/docker/ollama-compose.yml exec ollama ollama pull llama3
+#
+# GPU users: add "deploy.resources.reservations.devices" (NVIDIA) or use
+# ollama/ollama:rocm for AMD.  CPU-only works out of the box.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Pull the default model after the server is ready
+    command: >
+      sh -c "ollama serve &
+             sleep 5 &&
+             ollama pull llama3 &&
+             wait"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  ollama_data:
+    # Persists model weights across container restarts
