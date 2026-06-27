@@ -25,43 +25,116 @@ A structured, runnable curriculum for engineers who want to build real agentic A
 
 ## What's in `labs/`
 
-Each file teaches one concept and runs standalone. Files are prefixed with their lesson number for discoverability.
+Each file teaches one concept and runs standalone. Files are prefixed with their session number.
 
-### Phase 1 — Foundation (lessons 01–12)
+### Track 0 — Foundations
+
+| File | Concept |
+|---|---|
+| `00_llm_fundamentals.py` | LLM internals — tokenization, context windows, sampling, benchmarks, SDLC→agentic bridge |
+| `00b_engineering_foundations.py` | FastAPI + pgvector skeleton — the engineering on-ramp for non-backend engineers |
+| `02b_prompt_engineering.py` | Prompt workbench — zero-shot → few-shot → CoT → XML → extended thinking, cost/quality comparison |
+
+### Track A — Agentic Systems
 
 | File | Concept |
 |---|---|
 | `01_model_wrapper.py` | Model wrapper — `ChatAnthropic.invoke()` |
 | `02_lcel_chain.py` | LCEL composition — `prompt \| model \| parser` |
-| `03_agent_manual.py` | Manual tool-calling loop (hand-written `while not msg.tool_calls`) |
+| `03_agent_manual.py` | Manual tool-calling loop + parallel dispatch via `asyncio.gather` |
 | `03_agent_framework.py` | Framework agent — `create_react_agent` from LangGraph |
-| `04_prompt_caching.py` | Prompt caching — 76% cheaper per run with one keyword |
-| `05_structured_output.py` | Typed output — `model.with_structured_output(PydanticModel)` |
-| `06_parallel_chains.py` | LCEL fan-out — `RunnableParallel` |
-| `07_output_parsers.py` | Six built-in output parsers + a custom one |
-| `08_chatbot_memory.py` | Stateful agent — `MemorySaver` + `thread_id` |
-| `09_rag.py` | Full RAG pipeline — load → split → embed → store → retrieve → generate |
-| `10_guardrails.py` | RAG wrapped in input + output guardrails |
-| `11_production_chatbot.py` | **Capstone** — RAG + memory + caching + guardrails composed |
-
-### Phase 2 — Advanced patterns (sessions 1–6 of the 46-session curriculum)
-
-| File | Concept |
-|---|---|
-| `12_mcp_server.py` + `12_mcp_client.py` | MCP — tools shared via JSON-RPC stdio, usable by any MCP client |
+| `12_mcp_server.py` + `12_mcp_client.py` | MCP — tools shared via JSON-RPC stdio |
+| `12b_a2a_*.py` | A2A protocol — agent-to-agent task delegation |
 | `13_reflection_agent.py` | Reflection — writer + critic loop with iteration budget |
 | `13_plan_execute_agent.py` | Plan-and-Execute — planner + executor + aggregator |
 | `14_multi_agent.py` | Supervisor + specialists pattern |
 | `14_long_term_memory.py` | Vector-stored user facts across sessions |
+
+### Track B — RAG Systems
+
+| File | Concept |
+|---|---|
+| `09_rag.py` | Full RAG pipeline — load → split → embed → store → retrieve → generate |
+| `09b_voice_image_agents.py` | Multimodal pipeline — STT → Claude → DALL-E/Flux → TTS (budget + quality tracks) |
+| `22_hybrid_rag.py` | Hybrid RAG — dense + sparse (BM25) + RRF fusion + HyDE retrieval |
+| `23_graph_rag.py` | GraphRAG — entity extraction + graph traversal |
+| `24_corrective_rag.py` | Corrective RAG (CRAG) — relevance grading + web fallback |
+
+### Track C — Infrastructure & Routing
+
+| File | Concept |
+|---|---|
+| `07b_ecosystem_fluency.py` | HuggingFace Hub, open-weight models, provider shootout, benchmark reading |
+| `08b_inference_platforms.py` | Cloud inference (groq/together/Fireworks) vs self-hosting (Ollama) via LiteLLM |
+| `18_direct_anthropic.py` | Anthropic SDK direct — raw `messages.create`, streaming, tool use |
+| `19_ai_gateway.py` | AI Gateway — LiteLLM routing, fallbacks, portkey, Kong |
+
+### Track D — Workflow & Skill
+
+| File | Concept |
+|---|---|
+| `04_prompt_caching.py` | Prompt caching — 76% cheaper per run with one keyword |
+| `05_structured_output.py` | Typed output — `model.with_structured_output(PydanticModel)` |
+| `06_parallel_chains.py` | LCEL fan-out — `RunnableParallel` |
+| `07_output_parsers.py` | Six built-in output parsers + a custom one |
 | `15_spec_driven.py` | Spec-Driven Development — Spec → Tasks → Code → VerificationReport |
 | `16_vibe_coding.py` | Vibe Coding — generate → execute → reflect → retry |
-| `17_claude_skills_router.py` + `skills/*/SKILL.md` | Claude Skills — modular knowledge bundles with description-based triggering |
+| `17_claude_skills_router.py` | Claude Skills — modular knowledge bundles with description-based triggering |
 
-Plus:
-- [`labs/NOTES.md`](labs/NOTES.md) — index into the 17 lesson walkthroughs
-- [`labs/LEARNINGS.md`](labs/LEARNINGS.md) — conceptual deep dives (the LLM Client mental model, prompt caching mechanics, the lifecycle of an LLM call)
-- [`labs/CURRICULUM.md`](labs/CURRICULUM.md) — the 46-session learning plan
-- [`labs/CURRICULUM.csv`](labs/CURRICULUM.csv) — tracker spreadsheet
+### Track E — Safety & Governance
+
+| File | Concept |
+|---|---|
+| `10_guardrails.py` | Input/output guardrails + guardrails-ai + NeMo Guardrails colang config |
+| `31_red_teaming.py` | Red-teaming — prompt injection, jailbreak probes, adversarial eval |
+| `32_governance.py` | AI governance — audit trail, policy enforcement, compliance checks |
+
+### Track F — Production
+
+| File | Concept |
+|---|---|
+| `08_chatbot_memory.py` | Stateful agent — `MemorySaver` + `thread_id` |
+| `11_production_chatbot.py` | **Capstone** — RAG + memory + caching + guardrails composed |
+| `25_evaluation.py` | Evaluation — Ragas + LangSmith + Langfuse tracing |
+| `26_cost_optimization.py` | Cost optimization — caching, batching, model tiering |
+| `27_streaming.py` | Streaming — SSE, WebSockets, token-by-token output |
+| `28_production_app.py` | Production deployment — Docker, health checks, observability |
+| `29_memory_architectures.py` | Memory architectures — short-term, long-term, episodic, semantic |
+
+### Track G — Architect Skills
+
+| File | Concept |
+|---|---|
+| `20_pdf_vision.py` + `20_citations_demo.py` | Files API, PDF vision, citations |
+| `21_custom_graph.py` + `21_time_travel.py` | Custom LangGraph — branching, time travel, checkpoints |
+| `21b_portfolio_generator.py` | Portfolio generator — AST-scans labs, writes PORTFOLIO.md + LinkedIn post via Claude |
+| `30_system_design_helper.py` | System design — agentic architecture patterns for interviews |
+| `33_ux_audit_helper.py` | AI UX patterns — progressive disclosure, confidence display, human-in-loop |
+
+### Track M — Claude Code Mastery *(optional)*
+
+| File | Concept |
+|---|---|
+| `41_repo_map.py` + `41_architecture_summary.py` | Codebase archaeology — map and summarize a repo with Claude |
+| `42_browser_agent.py` + `42_computer_use_demo.py` | Browser automation + computer use API |
+| `43_cron_agent.py` + `43_scheduled_routine.py` | Scheduled agentic routines |
+| `44_doc_writer.py` + `44_slide_builder.py` + `44_resume_tailor.py` | Document generation agents |
+| `45_review_orchestrator.py` + `45_reviewer_*.py` | Multi-agent code review — orchestrator + 4 specialist reviewers |
+| `46_claude_code_project_structure.py` | CLAUDE.md, hooks, settings — Claude Code project setup |
+
+### Capstone Projects
+
+| Directory | Project |
+|---|---|
+| `labs/agritech/` | AgriTech engine — farm planning + crop diagnostics with knowledge base |
+| `labs/coding_agent/` | Standalone tool-using coding agent |
+
+---
+
+**Reference files:**
+- [`labs/CURRICULUM.csv`](labs/CURRICULUM.csv) — full 46-session tracker
+- [`labs/lessons/`](labs/lessons/) — per-session lesson walkthroughs with Mermaid diagrams
+- [`labs/lessons/roadmap-2026-mapping.md`](labs/lessons/roadmap-2026-mapping.md) — how every session maps to the 2026 AI Engineer roadmap
 
 ---
 
