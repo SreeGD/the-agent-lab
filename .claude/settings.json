@@ -25,12 +25,24 @@
   "hooks": {
     "PreToolUse": [
       {
-        "command": "/Users/srmallip/projects/AgenticCourse/.claude/hooks/validate-code.sh"
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/srmallip/projects/AgenticCourse/.claude/hooks/validate-code.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
-        "command": "/Users/srmallip/projects/AgenticCourse/.claude/hooks/post-edit-format.sh"
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/srmallip/projects/AgenticCourse/.claude/hooks/post-edit-format.sh"
+          }
+        ]
       }
     ]
   }
