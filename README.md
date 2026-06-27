@@ -1,12 +1,12 @@
-# AgenticCourse
+# the-agent-lab
 
-A hands-on curriculum for building agentic AI systems with **LangChain**, **LangGraph**, and **Anthropic Claude** — from a one-line `model.invoke()` to a multi-agent, RAG-grounded, cached, guardrailed, memory-having production chatbot, plus the patterns above and beyond (Reflection, Plan-and-Execute, MCP, Spec-Driven Development, Vibe Coding, Claude Skills, and more).
+> 46-session hands-on curriculum. LLM internals → agentic systems → production. Built with Claude, OpenAI, Ollama, LangGraph, and FastAPI. Run the labs, ship the code.
 
-Built incrementally as a learning project. Every file in `labs/` is a runnable example that adds exactly one concept on top of the previous one.
+A structured, runnable curriculum for engineers who want to build real agentic AI systems — not just call an API. Covers the full 2026 AI engineer stack: LLM internals, prompt engineering, RAG, tool-using agents, multi-agent coordination, guardrails, observability, and production deployment. Every session ships working code.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests: 72 passing](https://img.shields.io/badge/tests-72%20passing-brightgreen.svg)](labs/tests/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Tests: 30 passing](https://img.shields.io/badge/tests-30%20passing-brightgreen.svg)](tests/)
 
 ---
 
@@ -129,14 +129,16 @@ Real-LLM integration tests are marked `@pytest.mark.integration` and skipped by 
 
 ## Tech stack
 
-- **Models:** Anthropic Claude (Sonnet 4.6, Opus 4.7)
+- **Models:** Anthropic Claude (Sonnet 4.6, Opus 4.8), OpenAI GPT-4o, local Ollama (Llama, Mistral, Qwen)
 - **Framework:** LangChain (LCEL), LangGraph (agents, state machines)
+- **API layer:** FastAPI + Pydantic v2
+- **Inference:** LiteLLM (multi-provider), groq, together.ai, Fireworks, Replicate
 - **Embeddings:** `sentence-transformers/all-MiniLM-L6-v2` (local, free)
 - **Vector store:** `InMemoryVectorStore` (swap for FAISS / Chroma / pgvector in production)
 - **Tool protocol:** MCP (Model Context Protocol)
 - **Skills:** Claude Skills (`SKILL.md` with YAML frontmatter)
 - **Testing:** pytest with structural + unit coverage
-- **Python:** 3.10+ (3.11+ recommended)
+- **Python:** 3.9+
 
 See [`labs/requirements.txt`](labs/requirements.txt) for the full dependency list.
 
@@ -160,9 +162,9 @@ Full discussion in [`labs/LEARNINGS.md`](labs/LEARNINGS.md).
 
 ## Status
 
-**Active learning project.** Phase 1 foundation (lessons 01–12) and Sessions 1–6 of the new curriculum are complete: ~22 runnable Python files, 17 lesson walkthroughs with FAQs, 3 Claude skills, 72 passing tests. The remaining 34 sessions (7 onwards — alt architectures, RAG architectures, production, architect skills, vertical deep dives, Claude Code mastery) are planned in [`labs/CURRICULUM.md`](labs/CURRICULUM.md) and will be built session by session.
+**Active learning project.** All 46 sessions are built and cover every category of the [AI Engineer 2026 roadmap](labs/lessons/roadmap-2026-mapping.md): LLM fundamentals, prompt engineering, RAG, agentic systems, multi-agent coordination, guardrails, observability, production deployment, inference platforms, multimodal, ecosystem fluency, and career compounding. 30 passing tests, ruff clean.
 
-This repo is built and maintained by **Sree** ([@SreeGD](https://github.com/SreeGD)) — a data scientist learning agentic AI architecture session by session.
+This repo is built and maintained by **Sree** ([@SreeGD](https://github.com/SreeGD)) — a data scientist building toward full-stack AI engineering, one session at a time.
 
 ---
 
