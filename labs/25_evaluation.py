@@ -20,7 +20,7 @@ each metric *is*, swapping to Ragas is a 10-line change.
 
 import json
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
@@ -234,6 +234,28 @@ METRICS = {
 }
 
 
+# ── Langfuse tracing integration ──────────────────────────────────────────────
+
+def trace_with_langfuse(
+    question: str, answer: str, langfuse_client: Any
+) -> str:
+    """Log a Q&A pair to Langfuse; return the trace ID."""
+    trace = langfuse_client.trace(
+        name="rag-eval",
+        input={"question": question},
+        output={"answer": answer},
+    )
+    return trace.id
+
+
+# Langfuse (open-source alternative — self-hostable)
+# pip install langfuse; set LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY
+# from langfuse import Langfuse
+# lf = Langfuse()
+# trace_id = trace_with_langfuse(question, answer, lf)
+# print(f"Langfuse trace: https://cloud.langfuse.com/trace/{trace_id}")
+
+
 # =====================================================================
 # Eval runner
 # =====================================================================
@@ -261,7 +283,7 @@ def evaluate_variant(name: str, variant_fn) -> dict:
         per_example.append({
             "id": ex["id"], "answer": answer, "scores": scores,
         })
-        print(f"        scores: " + "  ".join(f"{m[:4]}={s:.2f}" for m, s in scores.items()))
+        print("        scores: " + "  ".join(f"{m[:4]}={s:.2f}" for m, s in scores.items()))
 
     averages = {m: sum(v) / len(v) for m, v in per_metric.items()}
     averages["OVERALL"] = sum(averages.values()) / len(averages)
@@ -308,9 +330,9 @@ def regression_check(baseline: dict) -> None:
 
     if failed:
         print(f"\n  ✓ Harness caught {len(failed)} regression(s): {failed}")
-        print(f"  In CI this would FAIL the build — exactly what we want.")
+        print("  In CI this would FAIL the build — exactly what we want.")
     else:
-        print(f"\n  No regressions caught (this would be a surprise for k=1).")
+        print("\n  No regressions caught (this would be a surprise for k=1).")
 
 
 # =====================================================================

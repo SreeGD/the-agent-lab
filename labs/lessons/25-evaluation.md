@@ -340,6 +340,58 @@ Session 15 (Cost Optimization) — you can't claim a cost reduction is "free" wi
 
 ---
 
+## Langfuse — Open-Source Alternative to LangSmith
+
+### Self-hostable vs managed comparison
+
+| Feature | LangSmith (managed) | Langfuse (self-hosted) | Langfuse Cloud |
+|---|---|---|---|
+| Hosting | SaaS only | Docker / K8s on your infra | SaaS |
+| Data residency | US/EU LangChain servers | Your servers — full control | EU servers |
+| Cost | Paid tiers above free quota | Infra cost only (open-source) | Free tier + paid |
+| GDPR / HIPAA | Contractual | You own the data entirely | Contractual |
+| LangChain integration | Native callbacks | Callback handler | Callback handler |
+| Metrics | Traces, latency, cost | Traces, latency, scores, cost | Same |
+
+### Tracing a Q&A pair
+
+```python
+from typing import Any
+
+def trace_with_langfuse(
+    question: str, answer: str, langfuse_client: Any
+) -> str:
+    """Log a Q&A pair to Langfuse; return the trace ID."""
+    trace = langfuse_client.trace(
+        name="rag-eval",
+        input={"question": question},
+        output={"answer": answer},
+    )
+    return trace.id
+```
+
+Usage:
+
+```python
+# pip install langfuse; set LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY
+from langfuse import Langfuse
+
+lf = Langfuse()
+trace_id = trace_with_langfuse(question, answer, lf)
+print(f"Langfuse trace: https://cloud.langfuse.com/trace/{trace_id}")
+```
+
+### What to look for in the Langfuse dashboard
+
+After running the eval harness with tracing enabled, open the Langfuse UI:
+- **Traces view**: each RAG call is one trace; expand to see individual LLM spans
+- **Latency histogram**: spot the slow calls (usually the judge chain, not retrieval)
+- **Score tab**: attach metric scores to traces so you can filter by quality bucket
+- **Cost tab**: per-model token spend; useful for confirming Haiku is cheaper than Sonnet for judge calls
+- **Sessions**: group multiple traces from a single eval run into one session for comparison
+
+---
+
 ## Related
 
 - **Previous:** [24 — Corrective RAG](24-corrective-rag.md)
