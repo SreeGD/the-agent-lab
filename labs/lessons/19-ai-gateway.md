@@ -149,14 +149,15 @@ Requires only `ANTHROPIC_API_KEY` for the demo. For real multi-provider routing,
 
 ## When to use which AI gateway
 
-| Gateway | When to pick |
-|---|---|
-| **LiteLLM (Python lib in-process)** | Single Python app, prototyping, libraries you're shipping |
-| **LiteLLM (self-hosted proxy)** | Multi-app organization, central credentials + audit + rate limits |
-| **OpenRouter** | Don't want to manage credentials yourself; pay-as-you-go; willing to add a service to your stack |
-| **Vercel AI Gateway** | Already on Vercel; want zero-ops fallbacks + analytics; OK with Vercel-specific |
-| **Portkey** | Enterprise tier with org-level governance, GDPR controls |
-| **No gateway** | Single-provider, low-volume, never going to swap. Don't add complexity you won't use. |
+| Gateway | Type | When to pick |
+|---|---|---|
+| **LiteLLM (Python lib in-process)** | Open-source library | Single Python app, prototyping, libraries you're shipping |
+| **LiteLLM (self-hosted proxy)** | Open-source proxy | Multi-app organization, central credentials + audit + rate limits |
+| **OpenRouter** | SaaS | Don't want to manage credentials yourself; pay-as-you-go; willing to add a service to your stack |
+| **Vercel AI Gateway** | SaaS | Already on Vercel; want zero-ops fallbacks + analytics; OK with Vercel-specific |
+| **portkey** | SaaS overlay | Semantic caching + unified observability |
+| **Kong AI Gateway** | Self-hosted | Enterprise plugins (rate-limit, auth, semantic cache) |
+| **No gateway** | — | Single-provider, low-volume, never going to swap. Don't add complexity you won't use. |
 
 ---
 

@@ -23,7 +23,7 @@ import logging
 logging.getLogger("LiteLLM").setLevel(logging.ERROR)
 
 # litellm exposes the unified completion() API
-import litellm
+import litellm  # noqa: E402
 
 load_dotenv()
 
@@ -164,6 +164,31 @@ def demo_fallback_chain():
 # =====================================================================
 # Main
 # =====================================================================
+
+# ── portkey: semantic caching + observability overlay ─────────────────────────
+# pip install portkey-ai
+# from portkey_ai import Portkey
+# portkey = Portkey(api_key=os.environ["PORTKEY_API_KEY"])
+# response = portkey.chat.completions.create(
+#     model="claude-sonnet-4-6",
+#     messages=[{"role": "user", "content": "Hello"}],
+#     # portkey adds: semantic cache, cost tracking, retry, multi-provider routing
+# )
+
+# ── Kong AI Gateway: enterprise rate-limiting + plugin model ──────────────────
+# Kong sits in front of any LLM API; config via declarative YAML:
+# plugins:
+#   - name: ai-proxy
+#     config:
+#       provider: anthropic
+#       model: claude-sonnet-4-6
+#   - name: rate-limiting
+#     config:
+#       minute: 100
+#   - name: ai-semantic-cache-advanced
+#     config:
+#       embeddings_provider: openai
+
 
 if __name__ == "__main__":
     if not os.environ.get("ANTHROPIC_API_KEY"):
