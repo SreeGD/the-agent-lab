@@ -67,7 +67,7 @@ Plus:
 
 ## The curriculum at a glance
 
-**40 sessions across 13 tracks, ~80 hours, ~13 weeks** at 9 hours/week.
+**46 sessions across 13 tracks, ~92 hours, ~14 weeks** at 9 hours/week.
 
 | Phase | Sessions | Tracks |
 |---|---|---|
@@ -121,8 +121,8 @@ graph TD
 ## Quick start
 
 ```bash
-git clone https://github.com/SreeGD/AgenticCourse.git
-cd AgenticCourse/labs
+git clone https://github.com/SreeGD/the-agent-lab.git
+cd the-agent-lab/labs
 
 # Create a Python 3.10+ venv (3.11+ recommended for the mcp SDK)
 python3.11 -m venv .venv
@@ -158,7 +158,7 @@ A pytest test suite covers the deterministic parts of each session (PII regex, p
 ```bash
 cd labs
 source .venv/bin/activate
-python -m pytest          # → 72 passed in ~3s
+python -m pytest          # → 30 passed
 ```
 
 Real-LLM integration tests are marked `@pytest.mark.integration` and skipped by default. Run them with `pytest -m integration` (requires `ANTHROPIC_API_KEY`).
