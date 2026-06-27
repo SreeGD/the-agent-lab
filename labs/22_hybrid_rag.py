@@ -13,7 +13,9 @@ Hybrid : Run both, fuse with Reciprocal Rank Fusion (RRF). No score-normalizatio
 """
 
 from pathlib import Path
+from typing import Any
 
+import anthropic
 from dotenv import load_dotenv
 from langchain_community.document_loaders import TextLoader
 from langchain_core.documents import Document
@@ -110,6 +112,26 @@ def hybrid_search(query: str, k: int = 5, retriever_k: int = 10) -> list[Documen
 
 
 # =====================================================================
+# HyDE — Hypothetical Document Embeddings
+# =====================================================================
+
+def hyde_retrieve(
+    query: str, vectorstore: Any, client: anthropic.Anthropic, k: int = 4
+) -> list[Any]:
+    """HyDE: generate a hypothetical answer, embed it, use as the query vector."""
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=256,
+        messages=[{
+            "role": "user",
+            "content": f"Write a short, factual answer to: {query}",
+        }],
+    )
+    hypothetical_answer = response.content[0].text
+    return vectorstore.similarity_search(hypothetical_answer, k=k)
+
+
+# =====================================================================
 # Three demo queries — chosen to exercise each retriever's strengths
 # =====================================================================
 
@@ -190,9 +212,9 @@ if __name__ == "__main__":
     print("HYBRID RAG — dense + sparse + Reciprocal Rank Fusion")
     print("=" * 70)
     print(f"  Corpus: {len(chunks)} chunks from NOTES.md + LEARNINGS.md")
-    print(f"  Dense:  sentence-transformers/all-MiniLM-L6-v2 (384 dims)")
-    print(f"  Sparse: BM25Okapi via rank_bm25")
-    print(f"  Fusion: Reciprocal Rank Fusion (k=60)")
+    print("  Dense:  sentence-transformers/all-MiniLM-L6-v2 (384 dims)")
+    print("  Sparse: BM25Okapi via rank_bm25")
+    print("  Fusion: Reciprocal Rank Fusion (k=60)")
 
     for q_info in QUERIES:
         run_query_demo(q_info)

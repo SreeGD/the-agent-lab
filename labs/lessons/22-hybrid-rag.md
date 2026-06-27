@@ -289,6 +289,62 @@ A: `langchain.retrievers.EnsembleRetriever` with `weights` parameter — but tha
 
 ---
 
+## HyDE — Hypothetical Document Embeddings
+
+### The problem
+
+Query embeddings and document embeddings live in different semantic spaces.
+A short user question like "photosynthesis?" has a very different embedding
+than a long document passage that explains photosynthesis in detail.
+Dense retrieval underperforms when questions are short but corpus documents are long.
+
+### Solution
+
+```
+query → Claude generates hypothetical answer → embed the answer → search with that vector
+```
+
+Instead of embedding the sparse query, you embed a *hypothetical document* that would
+answer the query. That hypothetical answer lives in the same semantic space as real
+document chunks — closing the query-document gap.
+
+### When to use HyDE
+
+- Knowledge-dense corpora where user questions are short telegraphic phrases
+- Technical docs where questions are brief but matching passages are several paragraphs
+- When dense-only retrieval recall is measurably below hybrid (check with eval harness)
+
+### Code
+
+```python
+import anthropic
+from typing import Any
+
+def hyde_retrieve(
+    query: str, vectorstore: Any, client: anthropic.Anthropic, k: int = 4
+) -> list[Any]:
+    """HyDE: generate a hypothetical answer, embed it, use as the query vector."""
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=256,
+        messages=[{
+            "role": "user",
+            "content": f"Write a short, factual answer to: {query}",
+        }],
+    )
+    hypothetical_answer = response.content[0].text
+    return vectorstore.similarity_search(hypothetical_answer, k=k)
+```
+
+### Cost trade-off
+
+HyDE adds one extra LLM call per query (generating the hypothetical answer).
+That call returns ~100-300 tokens at Haiku pricing (~$0.0001). Against the
+background of a full RAG answer call, HyDE's overhead is marginal — but measure
+it with `time.perf_counter` before enabling in high-volume paths.
+
+---
+
 ## Related
 
 - **Previous:** [21 — Custom LangGraph + HITL](21-custom-langgraph.md)
